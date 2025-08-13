@@ -1,0 +1,30 @@
+### User Registration
+POST http://localhost:8000/api/v1/auth/register
+Content-Type: application/json
+
+{
+    "email": "newtestuser@example.com",
+    "password": "Password123!",
+    "fullName": "New Test User",
+    "phone": "+919999999998"
+}
+
+### User Login (Form URL-encoded)
+POST http://localhost:8000/api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=newtestuser@example.com&password=Password123!
+###
+
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODljODNiODhlZjhkZTc0NGM3MjNiYmQiLCJleHAiOjE3NTUwOTAwNjN9.hd3h20EkPEXmVlJFOiQriildOMaQr7SzvNV3n3JNMmc",
+  "token_type": "bearer"
+}
+###
+
+### Store the token from the login response
+# @token = {{login.response.body.token}}
+
+### Get Current User Profile
+GET http://localhost:8000/api/v1/auth/me
+# Authorization: Bearer {{token}}
