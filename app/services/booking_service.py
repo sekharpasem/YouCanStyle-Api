@@ -113,9 +113,15 @@ async def cancel_booking(booking_id: str, reason: Optional[str] = None) -> Optio
     updated_booking = await get_booking_by_id(booking_id)
     return updated_booking
 
-async def complete_booking(booking_id: str, otp_code: str) -> Optional[Dict[str, Any]]:
+async def complete_booking(booking_id: str) -> Optional[Dict[str, Any]]:
     """
-    Complete a booking with OTP verification
+    Complete a booking (no OTP verification needed, since it was verified at start)
+    
+    Args:
+        booking_id: The ID of the booking to complete
+        
+    Returns:
+        Updated booking or None if booking not found or not in progress
     """
     # Get the current booking
     booking = await get_booking_by_id(booking_id)
@@ -124,10 +130,6 @@ async def complete_booking(booking_id: str, otp_code: str) -> Optional[Dict[str,
     
     # Check if booking is in progress
     if booking["status"] != BookingStatus.IN_PROGRESS:
-        return None
-    
-    # Verify OTP code
-    if booking.get("otpCode") != otp_code:
         return None
     
     # Update booking status
@@ -205,9 +207,16 @@ async def get_client_bookings(
     
     return bookings
 
-async def start_session(booking_id: str) -> Optional[Dict[str, Any]]:
+async def start_session(booking_id: str, otp_code: str) -> Optional[Dict[str, Any]]:
     """
-    Start a booking session
+    Start a booking session with OTP verification
+    
+    Args:
+        booking_id: The ID of the booking to start
+        otp_code: OTP code provided by the client for verification
+        
+    Returns:
+        Updated booking or None if booking not found or OTP invalid
     """
     # Get the current booking
     booking = await get_booking_by_id(booking_id)
@@ -216,6 +225,10 @@ async def start_session(booking_id: str) -> Optional[Dict[str, Any]]:
     
     # Check if booking is confirmed
     if booking["status"] != BookingStatus.CONFIRMED:
+        return None
+    
+    # Verify OTP code
+    if booking.get("otpCode") != otp_code:
         return None
     
     # Update booking status
@@ -296,3 +309,92 @@ async def update_stylist_rating(stylist_id: str) -> None:
                 "reviewCount": review_count
             }}
         )
+
+async def update_payment_status(booking_id: str, payment_status: PaymentStatus) -> Optional[Dict[str, Any]]:
+    """
+    Update the payment status of a booking
+    
+    Args:
+        booking_id: The ID of the booking to update
+        payment_status: New payment status (PENDING, COMPLETED, FAILED)
+        
+    Returns:
+        Updated booking or None if booking not found
+    """
+    # Get the current booking
+    booking = await get_booking_by_id(booking_id)
+    if not booking:
+        return None
+    
+    # Update payment status
+    update_data = {
+        "paymentStatus": payment_status,
+        "updatedAt": datetime.utcnow()
+    }
+    
+    # If payment is completed, also update booking status to CONFIRMED if it was PENDING
+    if payment_status == PaymentStatus.COMPLETED and booking["status"] == BookingStatus.PENDING:
+        update_data["status"] = BookingStatus.CONFIRMED
+    
+    # Update booking in database
+    await db.db.bookings.update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": update_data}
+    )
+    
+    # Get the updated booking
+    updated_booking = await get_booking_by_id(booking_id)
+    return updated_booking
+
+async def reschedule_booking(
+    booking_id: str, 
+    date: datetime, 
+    start_time: str, 
+    end_time: str, 
+    reason: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Reschedule a booking by updating date and time
+    
+    Args:
+        booking_id: The ID of the booking to reschedule
+        date: New date for the booking
+        start_time: New start time (format: HH:MM)
+        end_time: New end time (format: HH:MM)
+        reason: Optional reason for rescheduling
+        
+    Returns:
+        Updated booking or None if booking not found or cannot be rescheduled
+    """
+    # Get the current booking
+    booking = await get_booking_by_id(booking_id)
+    if not booking:
+        return None
+    
+    # Check if booking can be rescheduled
+    # Can't reschedule completed, cancelled or no-show bookings
+    if booking["status"] in [BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW]:
+        return None
+    
+    # Update booking data
+    update_data = {
+        "date": date,
+        "startTime": start_time,
+        "endTime": end_time,
+        "status": BookingStatus.RESCHEDULED,
+        "updatedAt": datetime.utcnow()
+    }
+    
+    # Add reason if provided
+    if reason:
+        update_data["rescheduleReason"] = reason
+    
+    # Update booking in database
+    await db.db.bookings.update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": update_data}
+    )
+    
+    # Get the updated booking
+    updated_booking = await get_booking_by_id(booking_id)
+    return updated_booking

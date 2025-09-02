@@ -18,6 +18,14 @@ class Certificate(BaseModel):
     url: str
     verified: bool = False
     verifiedAt: Optional[datetime] = None
+    
+class Service(BaseModel):
+    name: str
+    description: str
+    duration: int  # Duration in minutes
+    price: float
+    category: str  # e.g., 'Hair', 'Makeup', 'Nails'
+    isActive: bool = True
 
 class Experience(BaseModel):
     years: int
@@ -62,6 +70,7 @@ class StylistCreate(BaseModel):
     experience: Experience
     availableOnline: bool = True
     availableInPerson: bool = True
+    services: Optional[List[Service]] = []
     
 class StylistUpdate(BaseModel):
     name: Optional[str] = None
@@ -75,6 +84,7 @@ class StylistUpdate(BaseModel):
     availableInPerson: Optional[bool] = None
     availabilitySchedule: Optional[AvailabilitySchedule] = None
     bankDetails: Optional[BankDetails] = None
+    services: Optional[List[Service]] = None
 
 class StylistDB(BaseModel):
     id: str = Field(..., alias="_id")
@@ -85,12 +95,13 @@ class StylistDB(BaseModel):
     bio: str
     portfolioImages: List[str] = []
     specialties: List[str]
-    price: float
+    price: float  # Base price
     rating: float = 0
     reviewCount: int = 0
     availableOnline: bool
     availableInPerson: bool
     experience: Experience
+    services: List[Service] = []  # Services offered by the stylist
     documents: Dict[str, Any] = {}
     applicationStatus: ApplicationStatus = ApplicationStatus.PENDING
     availabilitySchedule: AvailabilitySchedule = Field(default_factory=AvailabilitySchedule)
@@ -119,6 +130,7 @@ class StylistResponse(BaseModel):
     availableOnline: bool
     availableInPerson: bool
     experience: Experience
+    services: List[Service] = []  # Services offered by the stylist
     applicationStatus: ApplicationStatus
     
     class Config:

@@ -1,76 +1,154 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from typing import Any
-from app.core.auth import create_access_token, get_current_user, get_password_hash, verify_password
+from fastapi import APIRouter, HTTPException, status, Body, Depends
+from typing import Any, Dict, Optional
+from app.core.auth import create_access_token, get_current_user
 from app.schemas.token import Token
-from app.schemas.user import UserCreate, UserResponse
-from app.services.user_service import create_user, get_user_by_email
-from datetime import timedelta
+from app.schemas.user import UserResponse, UserUpdate
+from app.db.mongodb import db
+from bson import ObjectId
+from datetime import datetime, timedelta
 from app.core.config import settings
+import random
+import string
 
 router = APIRouter()
 
-@router.post("/register", response_model=UserResponse)
-async def register(user_in: UserCreate) -> Any:
-    """Register a new user."""
-    # Check if user already exists
-    existing_user = await get_user_by_email(user_in.email)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email already exists."
-        )
-    
-    # Create new user
-    user = await create_user(user_in)
+# In-memory OTP storage (replace with Redis or database in production)
+otp_store = {}
+
+async def get_user_by_phone(phone: str) -> Optional[Dict[str, Any]]:
+    """Get a user by phone number"""
+    user = await db.db.users.find_one({"phone": phone})
     return user
 
-@router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
-    """Login and get access token."""
-    user = await get_user_by_email(form_data.username)
-    if not user:
+async def create_user_with_phone(phone: str, fullName: str) -> Dict[str, Any]:
+    """Create a new user with phone and name"""
+    user_data = {
+        "phone": phone,
+        "fullName": fullName,
+        "email": f"{phone.replace('+', '')}@placeholder.com",  # Placeholder email
+        "role": "client",
+        "isProfileComplete": False,
+        "createdAt": datetime.utcnow(),
+        "isActive": True,
+        "settings": {
+            "notifications": {
+                "push": True,
+                "sms": True
+            },
+            "preferredLanguage": "en",
+            "darkMode": False
+        }
+    }
+    
+    result = await db.db.users.insert_one(user_data)
+    created_user = await db.db.users.find_one({"_id": result.inserted_id})
+    created_user["id"] = str(created_user["_id"])
+    return created_user
+
+@router.post("/request-otp")
+async def request_otp(phone: str = Body(..., embed=True)) -> Any:
+    """Request OTP for phone verification
+    
+    This endpoint is used to initiate the login/registration process.
+    It checks if the user exists and sends an OTP to their phone.
+    """
+    # Check if user exists with this phone
+    existing_user = await get_user_by_phone(phone)
+    is_new_user = existing_user is None
+    
+    # Generate random 6-digit OTP
+    otp = ''.join(random.choices(string.digits, k=6))
+    
+    # Store OTP with expiration time (in production, use Redis with TTL)
+    otp_store[phone] = otp
+    
+    # In production, send SMS here
+    # sms_service.send(phone, f"Your OTP is {otp}")
+    
+    # For development, print OTP to console
+    print(f"OTP for {phone}: {otp}")
+    
+    return {
+        "isNewUser": is_new_user,
+        "message": f"OTP sent to {phone}",
+        "devOtp": otp  # Remove in production
+    }
+
+@router.post("/verify-otp")
+async def verify_otp(
+    phone: str = Body(...),
+    otp: str = Body(...),
+    fullName: Optional[str] = Body(None)
+) -> Any:
+    """Verify OTP and authenticate or register user
+    
+    This endpoint verifies the OTP and either logs in an existing user
+    or registers a new user if the phone number is not found.
+    """
+    # Verify OTP
+    stored_otp = otp_store.get(phone)
+    if not stored_otp or stored_otp != otp:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP"
         )
     
-    if not verify_password(form_data.password, user.get("password")):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Clear used OTP
+    if phone in otp_store:
+        del otp_store[phone]
+    
+    # Check if user exists
+    user = await get_user_by_phone(phone)
+    
+    if not user:
+        # New user registration
+        if not fullName:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Full name required for new user"
+            )
+        
+        # Create new user
+        user = await create_user_with_phone(phone, fullName)
     
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user["_id"])}, expires_delta=access_token_expires
+        data={"sub": str(user["_id"])}, 
+        expires_delta=access_token_expires
     )
     
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": str(user["_id"]),
+            "phone": user["phone"],
+            "fullName": user.get("fullName", ""),
+            "isProfileComplete": user.get("isProfileComplete", False)
+        }
     }
 
-@router.post("/verify-otp", response_model=Token)
-async def verify_otp(phone: str, otp: str) -> Any:
-    """Verify OTP and generate token for phone login."""
-    # In a real implementation, verify OTP against stored value
-    # This is a placeholder implementation
-    # Normally, you would fetch the user by phone number and validate OTP
+@router.get("/me", response_model=UserResponse)
+async def read_users_me(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Get current user profile"""
+    return current_user
+
+@router.put("/me", response_model=UserResponse)
+async def update_user_profile(
+    user_update: UserUpdate,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Update current user profile"""
+    from app.services.user_service import update_user
     
-    # Simulate OTP verification (always successful for demo)
-    # In production, implement proper OTP verification
+    user_id = str(current_user["_id"])
+    updated_user = await update_user(user_id, user_update)
     
-    # Create access token after successful verification
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": phone}, expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+        
+    return updated_user

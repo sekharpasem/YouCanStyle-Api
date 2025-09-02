@@ -102,7 +102,8 @@ async def get_all_stylists(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     rating: Optional[int] = None,
-    online_only: Optional[bool] = None
+    online_only: Optional[bool] = None,
+    location: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Get all stylists with filtering options
@@ -125,6 +126,10 @@ async def get_all_stylists(
         
     if online_only is not None and online_only:
         query["availableOnline"] = True
+    
+    # Location filtering - case insensitive partial match
+    if location is not None and location.strip():
+        query["location"] = {"$regex": location, "$options": "i"}
     
     # Execute query
     cursor = db.db.stylists.find(query).skip(skip).limit(limit).sort("rating", -1)
@@ -211,3 +216,116 @@ async def update_earnings(stylist_id: str, amount: float) -> bool:
         }
     )
     return result.modified_count > 0
+
+async def get_stylist_services(stylist_id: str) -> List[Dict[str, Any]]:
+    """
+    Get services offered by a stylist
+    """
+    stylist = await get_stylist_by_id(stylist_id)
+    if not stylist:
+        return []
+    return stylist.get("services", [])
+
+async def add_service(stylist_id: str, service_data: Dict[str, Any]) -> bool:
+    """
+    Add a new service to stylist's offerings
+    """
+    # Add a unique ID to the service
+    service_data["id"] = str(ObjectId())
+    service_data["createdAt"] = datetime.utcnow()
+    
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$push": {"services": service_data}}
+    )
+    return result.modified_count > 0
+
+async def update_service(stylist_id: str, service_id: str, service_data: Dict[str, Any]) -> bool:
+    """
+    Update an existing service for a stylist
+    """
+    # Update with timestamp
+    service_data["updatedAt"] = datetime.utcnow()
+    
+    result = await db.db.stylists.update_one(
+        {
+            "_id": ObjectId(stylist_id),
+            "services.id": service_id
+        },
+        {"$set": {"services.$": {**service_data, "id": service_id}}}
+    )
+    return result.modified_count > 0
+
+async def remove_service(stylist_id: str, service_id: str) -> bool:
+    """
+    Remove a service from stylist's offerings
+    """
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$pull": {"services": {"id": service_id}}}
+    )
+    return result.modified_count > 0
+
+async def get_availability(stylist_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get a stylist's availability schedule
+    """
+    stylist = await get_stylist_by_id(stylist_id)
+    if not stylist:
+        return None
+    return stylist.get("availabilitySchedule", {})
+
+async def update_availability(stylist_id: str, availability_data: Dict[str, Any]) -> bool:
+    """
+    Update a stylist's availability schedule
+    """
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$set": {"availabilitySchedule": availability_data}}
+    )
+    return result.modified_count > 0
+
+async def update_day_availability(stylist_id: str, day: str, slots: List[Dict[str, str]]) -> bool:
+    """
+    Update availability for a specific day
+    """
+    # Validate day input
+    valid_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    if day.lower() not in valid_days:
+        return False
+        
+    # Update the day's slots
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$set": {f"availabilitySchedule.{day.lower()}.slots": slots}}
+    )
+    return result.modified_count > 0
+
+async def get_available_dates(stylist_id: str, year: int, month: int) -> List[int]:
+    """
+    Get available dates for a specific month and year
+    Returns a list of days where the stylist has availability slots set
+    """
+    from calendar import monthrange
+    import datetime
+    
+    # Get stylist availability schedule
+    availability = await get_availability(stylist_id)
+    if not availability:
+        return []
+        
+    # Get the number of days in the month
+    _, num_days = monthrange(year, month)
+    
+    # Determine available dates
+    available_dates = []
+    for day in range(1, num_days + 1):
+        # Create date object to get day of week
+        date = datetime.date(year, month, day)
+        day_name = date.strftime('%A').lower()
+        
+        # Check if there are slots for this day in the availability schedule
+        if day_name in availability and availability[day_name].get("slots", []):
+            available_dates.append(day)
+            
+    return available_dates

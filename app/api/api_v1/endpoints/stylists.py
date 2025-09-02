@@ -5,7 +5,8 @@ from app.schemas.stylist import StylistCreate, StylistUpdate, StylistResponse, S
 from app.services.stylist_service import (
     create_stylist, get_stylist_by_id, get_stylist_by_user_id, 
     update_stylist, get_all_stylists, update_portfolio,
-    remove_portfolio_image, add_document, update_application_status
+    remove_portfolio_image, add_document, update_application_status,
+    get_stylist_services, add_service, update_service, remove_service
 )
 from app.utils.file_upload import upload_file
 
@@ -83,11 +84,19 @@ async def list_stylists(
     max_price: Optional[float] = None,
     rating: Optional[int] = None,
     online_only: Optional[bool] = False,
+    location: Optional[str] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100)
 ):
     """
     List all stylists with filters
+    
+    - **specialty**: Filter by stylist specialty area
+    - **min_price/max_price**: Filter by price range
+    - **rating**: Filter by minimum rating score
+    - **online_only**: Show only stylists available for online sessions
+    - **location**: Filter by stylist location (case-insensitive partial match)
+    - **skip/limit**: Pagination controls
     """
     stylists = await get_all_stylists(
         skip=skip,
@@ -96,9 +105,11 @@ async def list_stylists(
         min_price=min_price,
         max_price=max_price,
         rating=rating,
-        online_only=online_only
+        online_only=online_only,
+        location=location
     )
     return stylists
+
 
 @router.post("/me/portfolio", response_model=StylistResponse)
 async def upload_portfolio_image(

@@ -106,3 +106,9 @@ class BookingResponse(BaseModel):
 
 class BookingOtpVerify(BaseModel):
     otpCode: str
+
+class BookingReschedule(BaseModel):
+    date: datetime
+    startTime: str
+    endTime: str
+    reason: Optional[str] = None
