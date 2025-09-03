@@ -101,15 +101,11 @@ async def verify_otp(
     user = await get_user_by_phone(phone)
     
     if not user:
-        # New user registration
-        if not fullName:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Full name required for new user"
-            )
+        # New user registration - fullName is optional
+        name_to_use = fullName if fullName else f"User_{phone[-4:]}" # Use last 4 digits as default name
         
         # Create new user
-        user = await create_user_with_phone(phone, fullName)
+        user = await create_user_with_phone(phone, name_to_use)
     
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
