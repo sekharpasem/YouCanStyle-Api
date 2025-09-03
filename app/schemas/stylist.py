@@ -88,19 +88,22 @@ class StylistUpdate(BaseModel):
 
 class StylistDB(BaseModel):
     id: str = Field(..., alias="_id")
-    userId: str
+    userId: Optional[str] = None  # Can be null for phone-only registration initially
+    phone: str  # Phone number for authentication
     name: str
+    email: Optional[str] = None
     isIntern: bool = False
     location: str
-    bio: str
+    bio: Optional[str] = None
     portfolioImages: List[str] = []
-    specialties: List[str]
+    specialties: List[str] = []
     price: float  # Base price
     rating: float = 0
     reviewCount: int = 0
     availableOnline: bool
     availableInPerson: bool
-    experience: Experience
+    isProfileComplete: bool = False  # Track if profile is complete
+    experience: Optional[Experience] = None
     services: List[Service] = []  # Services offered by the stylist
     documents: Dict[str, Any] = {}
     applicationStatus: ApplicationStatus = ApplicationStatus.PENDING
@@ -117,11 +120,13 @@ class StylistDB(BaseModel):
 
 class StylistResponse(BaseModel):
     id: str
-    userId: str
+    userId: Optional[str] = None
+    phone: str
     name: str
+    email: Optional[str] = None
     isIntern: bool
     location: str
-    bio: str
+    bio: Optional[str] = None
     portfolioImages: List[str]
     specialties: List[str]
     price: float
@@ -129,7 +134,8 @@ class StylistResponse(BaseModel):
     reviewCount: int
     availableOnline: bool
     availableInPerson: bool
-    experience: Experience
+    isProfileComplete: bool
+    experience: Optional[Experience] = None
     services: List[Service] = []  # Services offered by the stylist
     applicationStatus: ApplicationStatus
     
