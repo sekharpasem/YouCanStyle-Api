@@ -57,12 +57,31 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
         if user_id is None:
             raise credentials_exception
             
-    except JWTError:
+    except JWTError as jwt_error:
+        print(f"JWT decode error: {jwt_error}")
         raise credentials_exception
-        
-    user = await db.db.users.find_one({"_id": ObjectId(user_id)})
     
-    if user is None:
-        raise credentials_exception
+    # Add explicit error handling for ObjectId conversion
+    try:
+        object_id = ObjectId(user_id)
+    except Exception as e:
+        print(f"Invalid ObjectId format: {user_id}, Error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid user ID format in token"
+        )
+        
+    try:    
+        user = await db.db.users.find_one({"_id": object_id})
+        
+        if user is None:
+            print(f"User not found for ID: {user_id}")
+            raise credentials_exception
+    except Exception as db_error:
+        print(f"Database error: {db_error}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving user data"
+        )
         
     return user

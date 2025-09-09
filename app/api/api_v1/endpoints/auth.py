@@ -128,7 +128,10 @@ async def verify_otp(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Get current user profile"""
-    return current_user
+    # Transform MongoDB _id to id for Pydantic schema compatibility
+    user_response = dict(current_user)
+    user_response["id"] = str(user_response.pop("_id"))
+    return user_response
 
 @router.put("/me", response_model=UserResponse)
 async def update_user_profile(
@@ -146,5 +149,9 @@ async def update_user_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
+    # Transform MongoDB _id to id for Pydantic schema compatibility
+    user_response = dict(updated_user)
+    user_response["id"] = str(user_response.pop("_id"))
         
-    return updated_user
+    return user_response

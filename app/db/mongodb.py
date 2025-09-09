@@ -32,6 +32,10 @@ async def close_mongo_connection():
         db.client.close()
         logger.info("MongoDB connection closed.")
 
+async def get_database():
+    """Get MongoDB database instance."""
+    return db.db
+
 async def create_indexes():
     """Create indexes for collections."""
     try:

@@ -97,6 +97,7 @@ class BookingResponse(BaseModel):
     coordinates: Optional[Coordinates] = None
     rating: Optional[int] = None
     review: Optional[str] = None
+    otpCode: Optional[str] = None
     
     class Config:
         populate_by_name = True

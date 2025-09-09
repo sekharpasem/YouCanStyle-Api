@@ -23,7 +23,7 @@ async def get_stylist_by_phone(phone: str) -> Optional[Dict[str, Any]]:
     try:
         # Use userId instead of phone as phone isn't in the schema
         # Assuming userId could be a phone number in some cases
-        stylist = await db.db.stylists.find_one({"userId": phone})
+        stylist = await db.stylists.find_one({"userId": phone})
         return stylist
     except Exception as e:
         logger.error(f"Error getting stylist by phone: {e}")
@@ -71,8 +71,8 @@ async def create_temporary_stylist(phone: str) -> Dict[str, Any]:
             "createdAt": datetime.utcnow()
         }
         
-        result = await db.db.stylists.insert_one(stylist_data)
-        created_stylist = await db.db.stylists.find_one({"_id": result.inserted_id})
+        result = await db.stylists.insert_one(stylist_data)
+        created_stylist = await db.stylists.find_one({"_id": result.inserted_id})
         created_stylist["id"] = str(created_stylist["_id"])
         return created_stylist
     except Exception as e:
