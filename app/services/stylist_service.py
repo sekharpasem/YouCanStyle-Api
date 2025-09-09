@@ -37,14 +37,18 @@ async def create_stylist(stylist_in: StylistCreate) -> Dict[str, Any]:
         "withdrawn": 0
     }
 
+    # Generate an ObjectId and assign it as _id
+    stylist_id = ObjectId()
+    stylist_data["_id"] = stylist_id
+    
+    # Also add the string representation as id to avoid duplicate key error
+    stylist_data["id"] = str(stylist_id)
+    
     # Insert stylist into database
     result = await db.db.stylists.insert_one(stylist_data)
     
     # Get the created stylist
     created_stylist = await db.db.stylists.find_one({"_id": result.inserted_id})
-    
-    # Transform the _id field to string
-    created_stylist["id"] = str(created_stylist["_id"])
     
     return created_stylist
 

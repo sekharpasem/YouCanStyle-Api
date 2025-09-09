@@ -60,6 +60,10 @@ class AvailabilitySchedule(BaseModel):
     saturday: DayAvailability = Field(default_factory=DayAvailability)
     sunday: DayAvailability = Field(default_factory=DayAvailability)
 
+class UnavailableSlot(BaseModel):
+    date: str  # ISO format, e.g., "2025-09-05"
+    slots: List[str]  # e.g., ["14:00-16:00"]
+
 class StylistCreate(BaseModel):
     userId: str
     name: str
@@ -71,6 +75,7 @@ class StylistCreate(BaseModel):
     availableOnline: bool = True
     availableInPerson: bool = True
     services: Optional[List[Service]] = []
+    unavailable: Optional[List[UnavailableSlot]] = []  # New field for unavailable dates and slots
     
 class StylistUpdate(BaseModel):
     name: Optional[str] = None
@@ -85,31 +90,30 @@ class StylistUpdate(BaseModel):
     availabilitySchedule: Optional[AvailabilitySchedule] = None
     bankDetails: Optional[BankDetails] = None
     services: Optional[List[Service]] = None
+    unavailable: Optional[List[UnavailableSlot]] = None  # New field for unavailable dates and slots
 
 class StylistDB(BaseModel):
     id: str = Field(..., alias="_id")
-    userId: Optional[str] = None  # Can be null for phone-only registration initially
-    phone: str  # Phone number for authentication
+    userId: str
     name: str
-    email: Optional[str] = None
     isIntern: bool = False
     location: str
-    bio: Optional[str] = None
+    bio: str
     portfolioImages: List[str] = []
-    specialties: List[str] = []
+    specialties: List[str]
     price: float  # Base price
     rating: float = 0
     reviewCount: int = 0
     availableOnline: bool
     availableInPerson: bool
-    isProfileComplete: bool = False  # Track if profile is complete
-    experience: Optional[Experience] = None
+    experience: Experience
     services: List[Service] = []  # Services offered by the stylist
     documents: Dict[str, Any] = {}
     applicationStatus: ApplicationStatus = ApplicationStatus.PENDING
     availabilitySchedule: AvailabilitySchedule = Field(default_factory=AvailabilitySchedule)
     bankDetails: Optional[BankDetails] = None
     earnings: Earnings = Field(default_factory=Earnings)
+    unavailable: List[UnavailableSlot] = []  # New field for unavailable dates and slots
     createdAt: datetime
     
     class Config:
@@ -120,13 +124,11 @@ class StylistDB(BaseModel):
 
 class StylistResponse(BaseModel):
     id: str
-    userId: Optional[str] = None
-    phone: str
+    userId: str
     name: str
-    email: Optional[str] = None
     isIntern: bool
     location: str
-    bio: Optional[str] = None
+    bio: str
     portfolioImages: List[str]
     specialties: List[str]
     price: float
@@ -134,10 +136,10 @@ class StylistResponse(BaseModel):
     reviewCount: int
     availableOnline: bool
     availableInPerson: bool
-    isProfileComplete: bool
-    experience: Optional[Experience] = None
+    experience: Experience
     services: List[Service] = []  # Services offered by the stylist
     applicationStatus: ApplicationStatus
+    unavailable: List[UnavailableSlot] = []  # New field for unavailable dates and slots
     
     class Config:
         populate_by_name = True

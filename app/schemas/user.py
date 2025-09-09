@@ -18,6 +18,11 @@ class UserUpdate(BaseModel):
     profileImage: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
     fcmToken: Optional[str] = None
+    gender: Optional[str] = None
+    dateOfBirth: Optional[str] = None
+    location: Optional[str] = None
+    stylePreferences: Optional[List[str]] = None
+    skinColor: Optional[str] = None
     
 class UserDB(UserBase):
     id: str = Field(..., alias="_id")
@@ -44,6 +49,12 @@ class UserResponse(BaseModel):
     createdAt: datetime
     lastLogin: Optional[datetime] = None
     isActive: bool
+    gender: Optional[str] = None
+    dateOfBirth: Optional[str] = None
+    location: Optional[str] = None
+    stylePreferences: Optional[List[str]] = None
+    skinColor: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
     
     class Config:
         populate_by_name = True
