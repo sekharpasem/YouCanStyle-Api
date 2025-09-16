@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from app.core.auth import get_current_user
 from app.schemas.stylist import StylistCreate, StylistUpdate, StylistResponse, StylistDocumentUpload, ApplicationStatus
 from app.services.stylist_service import (
@@ -9,6 +9,7 @@ from app.services.stylist_service import (
     get_stylist_services, add_service, update_service, remove_service
 )
 from app.utils.file_upload import upload_file
+from app.db.reviews import get_stylist_rating_and_review_count
 
 router = APIRouter()
 
@@ -58,6 +59,23 @@ async def get_stylist(stylist_id: str):
             detail="Stylist not found"
         )
     return stylist
+
+@router.get("/{stylist_id}/rating", response_model=Dict[str, Any])
+async def get_stylist_rating(stylist_id: str):
+    """
+    Get the average rating and review count for a specific stylist
+    """
+    # Check if stylist exists first
+    stylist = await get_stylist_by_id(stylist_id)
+    if not stylist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stylist not found"
+        )
+        
+    # Get rating and review count
+    rating_data = await get_stylist_rating_and_review_count(stylist_id)
+    return rating_data
 
 @router.put("/me", response_model=StylistResponse)
 async def update_my_stylist_profile(
