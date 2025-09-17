@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from typing import List, Optional, Dict
 from app.core.auth import get_current_user
-from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingStatus, BookingOtpVerify, PaymentStatus
+from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingStatus, BookingOtpVerify, PaymentStatus, BookingReschedule
 from app.services.booking_service import (
     create_booking, get_booking_by_id, update_booking, cancel_booking,
     get_stylist_bookings, get_client_bookings, start_session,
-    complete_booking, add_review, update_payment_status
+    complete_booking, add_review, update_payment_status, reschedule_booking
 )
 from app.services.stylist_service import get_stylist_by_id, get_stylist_by_user_id
 from datetime import datetime, timedelta
