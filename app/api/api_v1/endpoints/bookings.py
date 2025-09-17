@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
 from typing import List, Optional, Dict
 from app.core.auth import get_current_user
-from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingStatus, BookingOtpVerify, PaymentStatus, BookingReschedule
+from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingStatus, BookingOtpVerify, PaymentStatus, BookingReschedule, BookingLocationUpdate
 from app.services.booking_service import (
     create_booking, get_booking_by_id, update_booking, cancel_booking,
     get_stylist_bookings, get_client_bookings, start_session,
@@ -408,3 +408,65 @@ async def reschedule_booking_endpoint(
         )
     
     return rescheduled_booking
+
+@router.put("/{booking_id}/location", response_model=BookingResponse)
+async def update_booking_location(
+    booking_id: str,
+    location_data: BookingLocationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update the meeting location and coordinates for a booking
+    
+    - **location**: Meeting location name/address
+    - **coordinates**: Latitude and longitude coordinates
+    """
+    # Get booking
+    booking = await get_booking_by_id(booking_id)
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found"
+        )
+    
+    # Check if user has access to this booking
+    user_id = str(current_user["_id"])
+    is_admin = current_user.get("isAdmin", False)
+    
+    # Check if client or stylist for this booking
+    is_client = booking["clientId"] == user_id
+    
+    stylist = None
+    is_stylist = False
+    if not is_client:
+        stylist = await get_stylist_by_user_id(user_id)
+        is_stylist = stylist and booking["stylistId"] == str(stylist["_id"])
+    
+    if not (is_client or is_stylist or is_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to update this booking's location"
+        )
+    
+    # Check if booking can be updated (not completed or cancelled)
+    if booking["status"] in [BookingStatus.COMPLETED, BookingStatus.CANCELLED]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot update location for completed or cancelled bookings"
+        )
+    
+    # Update location and coordinates
+    from app.services.booking_service import update_booking_location
+    updated_booking = await update_booking_location(
+        booking_id,
+        location_data.location,
+        location_data.coordinates.model_dump()
+    )
+    
+    if not updated_booking:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not update booking location"
+        )
+    
+    return updated_booking

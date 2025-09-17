@@ -113,3 +113,7 @@ class BookingReschedule(BaseModel):
     startTime: str
     endTime: str
     reason: Optional[str] = None
+
+class BookingLocationUpdate(BaseModel):
+    location: str
+    coordinates: Coordinates
