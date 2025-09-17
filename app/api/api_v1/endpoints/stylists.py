@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from typing import List, Optional, Any, Dict
 from app.core.auth import get_current_user
 from app.schemas.stylist import StylistCreate, StylistUpdate, StylistResponse, StylistDocumentUpload, ApplicationStatus
+from app.schemas.review import ReviewResponse
 from app.services.stylist_service import (
     create_stylist, get_stylist_by_id, get_stylist_by_user_id, 
     update_stylist, get_all_stylists, update_portfolio,
@@ -9,7 +10,7 @@ from app.services.stylist_service import (
     get_stylist_services, add_service, update_service, remove_service
 )
 from app.utils.file_upload import upload_file
-from app.db.reviews import get_stylist_rating_and_review_count
+from app.db.reviews import get_stylist_rating_and_review_count, get_reviews_by_stylist
 
 router = APIRouter()
 
@@ -76,6 +77,26 @@ async def get_stylist_rating(stylist_id: str):
     # Get rating and review count
     rating_data = await get_stylist_rating_and_review_count(stylist_id)
     return rating_data
+
+@router.get("/{stylist_id}/reviews", response_model=List[Dict[str, Any]])  # Using Dict instead of ReviewResponse due to field mapping differences
+async def get_stylist_reviews(stylist_id: str, skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
+    """
+    Get all reviews about a specific stylist from the stylists_reviews collection
+    
+    - **skip**: Number of records to skip for pagination
+    - **limit**: Maximum number of records to return (1-100)
+    """
+    # Check if stylist exists first
+    stylist = await get_stylist_by_id(stylist_id)
+    if not stylist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stylist not found"
+        )
+        
+    # Get all reviews by this stylist with pagination
+    reviews = await get_reviews_by_stylist(stylist_id, skip=skip, limit=limit)
+    return reviews
 
 @router.put("/me", response_model=StylistResponse)
 async def update_my_stylist_profile(

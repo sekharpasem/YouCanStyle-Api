@@ -26,9 +26,41 @@ async def create_user_review(user_id: str, stylist_id: str, review: str, rating:
 
 async def get_stylist_reviews(stylist_id: str) -> List[Dict[str, Any]]:
     """
-    Get all reviews for a specific stylist
+    Get all reviews for a specific stylist from users
     """
     reviews = await db.db.users_reviews.find({"stylistId": ObjectId(stylist_id)}).sort("createdAt", DESCENDING).to_list(length=None)
+    return reviews
+
+async def get_reviews_by_stylist(stylist_id: str, skip: int = 0, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Get all reviews about a specific stylist from the stylists_reviews collection
+    with pagination support
+    
+    Args:
+        stylist_id: ID of the stylist being reviewed
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+    """
+    # Convert string ID to ObjectId for MongoDB query
+    stylist_object_id = ObjectId(stylist_id)
+    
+    # Find reviews where this stylist is being reviewed
+    cursor = db.db.stylists_reviews.find({"stylistId": stylist_id})\
+                               .sort("createdAt", DESCENDING)\
+                               .skip(skip)\
+                               .limit(limit)
+    
+    reviews = await cursor.to_list(length=limit)
+    
+    # Convert ObjectId to string for JSON serialization
+    for review in reviews:
+        review["_id"] = str(review["_id"])
+        review["stylistId"] = str(review["stylistId"])
+        review["userId"] = str(review["userId"])
+        # Ensure createdAt is serializable
+        if isinstance(review.get("createdAt"), datetime):
+            review["createdAt"] = review["createdAt"].isoformat()
+    
     return reviews
 
 async def create_stylist_review(stylist_id: str, user_id: str, review: str, rating: int, created_at: Optional[datetime] = None) -> Dict[str, Any]:
