@@ -398,3 +398,41 @@ async def reschedule_booking(
     # Get the updated booking
     updated_booking = await get_booking_by_id(booking_id)
     return updated_booking
+
+async def update_booking_location(
+    booking_id: str, 
+    location: str, 
+    coordinates: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """
+    Update the meeting location and coordinates for a booking
+    
+    Args:
+        booking_id: The ID of the booking to update
+        location: Meeting location name/address
+        coordinates: Dictionary containing lat and lng coordinates
+        
+    Returns:
+        Updated booking or None if booking not found
+    """
+    # Get the current booking
+    booking = await get_booking_by_id(booking_id)
+    if not booking:
+        return None
+    
+    # Update location and coordinates
+    update_data = {
+        "location": location,
+        "coordinates": coordinates,
+        "updatedAt": datetime.utcnow()
+    }
+    
+    # Update booking in database
+    await db.db.bookings.update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": update_data}
+    )
+    
+    # Get the updated booking
+    updated_booking = await get_booking_by_id(booking_id)
+    return updated_booking
