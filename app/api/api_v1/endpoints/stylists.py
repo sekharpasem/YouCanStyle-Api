@@ -65,6 +65,7 @@ async def get_stylist(stylist_id: str):
 async def get_stylist_rating(stylist_id: str):
     """
     Get the average rating and review count for a specific stylist
+    from the stylists_reviews collection
     """
     # Check if stylist exists first
     stylist = await get_stylist_by_id(stylist_id)
@@ -74,9 +75,16 @@ async def get_stylist_rating(stylist_id: str):
             detail="Stylist not found"
         )
         
-    # Get rating and review count
-    rating_data = await get_stylist_rating_and_review_count(stylist_id)
-    return rating_data
+    try:
+        # Get rating and review count
+        rating_data = await get_stylist_rating_and_review_count(stylist_id)
+        return rating_data
+    except Exception as e:
+        # Handle any exceptions from the database layer
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching stylist rating: {str(e)}"
+        )
 
 @router.get("/{stylist_id}/reviews", response_model=List[Dict[str, Any]])  # Using Dict instead of ReviewResponse due to field mapping differences
 async def get_stylist_reviews(stylist_id: str, skip: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100)):
