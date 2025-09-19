@@ -72,6 +72,15 @@ async def create_indexes():
         await db.db.stylists_reviews.create_index("userId")
         await db.db.stylists_reviews.create_index("createdAt")
         
+        # User favorites collection indexes
+        await db.db.user_favorites.create_index(
+            [("userId", 1), ("stylistId", 1)],
+            unique=True
+        )
+        await db.db.user_favorites.create_index("userId")
+        await db.db.user_favorites.create_index("stylistId")
+        await db.db.user_favorites.create_index("createdAt")
+        
         logger.info("MongoDB indexes created successfully.")
     except Exception as e:
         logger.error(f"Failed to create MongoDB indexes: {e}")
