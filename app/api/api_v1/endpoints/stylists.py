@@ -130,7 +130,9 @@ async def list_stylists(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     rating: Optional[int] = None,
-    online_only: Optional[bool] = False,
+    online_only: Optional[bool] = None,
+    in_person_only: Optional[bool] = None,
+    is_intern: Optional[bool] = None,
     location: Optional[str] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100)
@@ -142,6 +144,8 @@ async def list_stylists(
     - **min_price/max_price**: Filter by price range
     - **rating**: Filter by minimum rating score
     - **online_only**: Show only stylists available for online sessions
+    - **in_person_only**: Show only stylists available for in-person sessions
+    - **is_intern**: Filter by stylist type (true for interns, false for professionals)
     - **location**: Filter by stylist location (case-insensitive partial match)
     - **skip/limit**: Pagination controls
     """
@@ -153,6 +157,8 @@ async def list_stylists(
         max_price=max_price,
         rating=rating,
         online_only=online_only,
+        in_person_only=in_person_only,
+        is_intern=is_intern,
         location=location
     )
     return stylists
