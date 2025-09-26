@@ -32,6 +32,7 @@ class ServiceDetail(BaseModel):
 
 class BookingCreate(BaseModel):
     stylistId: str
+    stylistName: str
     date: datetime
     startTime: str
     endTime: str
@@ -54,6 +55,7 @@ class BookingUpdate(BaseModel):
 class BookingDB(BaseModel):
     id: str = Field(..., alias="_id")
     stylistId: str
+    stylistName: str
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
@@ -86,6 +88,7 @@ class BookingDB(BaseModel):
 class BookingResponse(BaseModel):
     id: str
     stylistId: str
+    stylistName: str
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
