@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.api_v1.endpoints import stylists, bookings, auth, chat, payments, notifications, uploads, services, availability, unavailability, stylist_auth, stylist_unavailability, stylist_availability
+from app.api.api_v1.endpoints import stylists, bookings, auth, chat, payments, notifications, uploads, services, availability, unavailability, stylist_auth, stylist_unavailability, stylist_availability, favorites
 
 router = APIRouter()
 
@@ -17,3 +17,4 @@ router.include_router(availability.router, prefix="/availability", tags=["Availa
 router.include_router(unavailability.router, prefix="/unavailability", tags=["Unavailability"])
 router.include_router(stylist_unavailability.router, prefix="/users", tags=["Stylist Unavailability"])
 router.include_router(stylist_availability.router, tags=["Stylist Availability"])
+router.include_router(favorites.router, prefix="/users/me/favorites", tags=["Favorites"])

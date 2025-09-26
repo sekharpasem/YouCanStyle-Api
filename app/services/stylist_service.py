@@ -107,6 +107,8 @@ async def get_all_stylists(
     max_price: Optional[float] = None,
     rating: Optional[int] = None,
     online_only: Optional[bool] = None,
+    in_person_only: Optional[bool] = None,
+    is_intern: Optional[bool] = None,
     location: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
@@ -128,8 +130,16 @@ async def get_all_stylists(
     if rating is not None:
         query["rating"] = {"$gte": rating}
         
-    if online_only is not None and online_only:
-        query["availableOnline"] = True
+    # Handle online and in-person availability filters
+    if online_only is not None:
+        query["availableOnline"] = online_only
+        
+    if in_person_only is not None:
+        query["availableInPerson"] = in_person_only
+    
+    # Filter by stylist type (intern or professional)
+    if is_intern is not None:
+        query["isIntern"] = is_intern
     
     # Location filtering - case insensitive partial match
     if location is not None and location.strip():
