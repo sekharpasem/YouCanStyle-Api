@@ -10,6 +10,7 @@ class ReviewBase(BaseModel):
 
 class ReviewCreate(ReviewBase):
     userId: str
+    userName: str  # Added userName field
     stylistId: str
     createdAt: Optional[datetime] = None
 
@@ -17,6 +18,7 @@ class ReviewCreate(ReviewBase):
 class ReviewResponse(ReviewBase):
     id: str = Field(..., alias="_id")
     userId: str
+    userName: str  # Added userName field
     stylistId: str
     createdAt: datetime
     
