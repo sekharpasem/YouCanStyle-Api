@@ -14,6 +14,9 @@ async def create_stylist(stylist_in: StylistCreate) -> Dict[str, Any]:
     stylist_data["reviewCount"] = 0
     stylist_data["isIntern"] = False
     stylist_data["portfolioImages"] = []
+    # Ensure profileImage is present (empty by default)
+    if not stylist_data.get("profileImage"):
+        stylist_data["profileImage"] = ""
     stylist_data["documents"] = {
         "addressProof": {
             "url": "",
@@ -37,6 +40,16 @@ async def create_stylist(stylist_in: StylistCreate) -> Dict[str, Any]:
         "withdrawn": 0
     }
 
+    # Normalize services: ensure each has a valid 'type'
+    if stylist_data.get("services"):
+        normalized_services = []
+        for svc in stylist_data["services"]:
+            s = dict(svc)
+            t = str(s.get("type", "online")).lower()
+            s["type"] = "inperson" if t == "inperson" else "online"
+            normalized_services.append(s)
+        stylist_data["services"] = normalized_services
+
     # Generate an ObjectId and assign it as _id
     stylist_id = ObjectId()
     stylist_data["_id"] = stylist_id
@@ -49,6 +62,10 @@ async def create_stylist(stylist_in: StylistCreate) -> Dict[str, Any]:
     
     # Get the created stylist
     created_stylist = await db.db.stylists.find_one({"_id": result.inserted_id})
+    if created_stylist is not None:
+        created_stylist["id"] = str(created_stylist["_id"])  # ensure id string
+        created_stylist.setdefault("portfolioImages", [])
+        created_stylist.setdefault("profileImage", "")
     
     return created_stylist
 
@@ -60,6 +77,8 @@ async def get_stylist_by_id(stylist_id: str) -> Optional[Dict[str, Any]]:
         stylist = await db.db.stylists.find_one({"_id": ObjectId(stylist_id)})
         if stylist:
             stylist["id"] = str(stylist["_id"])
+            stylist.setdefault("portfolioImages", [])
+            stylist.setdefault("profileImage", "")
         return stylist
     except:
         return None
@@ -71,6 +90,8 @@ async def get_stylist_by_user_id(user_id: str) -> Optional[Dict[str, Any]]:
     stylist = await db.db.stylists.find_one({"userId": user_id})
     if stylist:
         stylist["id"] = str(stylist["_id"])
+        stylist.setdefault("portfolioImages", [])
+        stylist.setdefault("profileImage", "")
     return stylist
 
 async def update_stylist(stylist_id: str, stylist_update: StylistUpdate) -> Optional[Dict[str, Any]]:
@@ -152,6 +173,8 @@ async def get_all_stylists(
     # Transform _id field to string
     for stylist in stylists:
         stylist["id"] = str(stylist["_id"])
+        stylist.setdefault("portfolioImages", [])
+        stylist.setdefault("profileImage", "")
         
     return stylists
 
@@ -162,6 +185,16 @@ async def update_portfolio(stylist_id: str, image_url: str) -> bool:
     result = await db.db.stylists.update_one(
         {"_id": ObjectId(stylist_id)},
         {"$push": {"portfolioImages": image_url}}
+    )
+    return result.modified_count > 0
+
+async def set_profile_image(stylist_id: str, image_url: str) -> bool:
+    """
+    Set or update the main profile image URL for a stylist
+    """
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$set": {"profileImage": image_url}}
     )
     return result.modified_count > 0
 
@@ -245,12 +278,16 @@ async def add_service(stylist_id: str, service_data: Dict[str, Any]) -> bool:
     Add a new service to stylist's offerings
     """
     # Add a unique ID to the service
-    service_data["id"] = str(ObjectId())
-    service_data["createdAt"] = datetime.utcnow()
-    
+    service = dict(service_data)
+    service["id"] = str(ObjectId())
+    service["createdAt"] = datetime.utcnow()
+    # Normalize type
+    t = str(service.get("type", "online")).lower()
+    service["type"] = "inperson" if t == "inperson" else "online"
+
     result = await db.db.stylists.update_one(
         {"_id": ObjectId(stylist_id)},
-        {"$push": {"services": service_data}}
+        {"$push": {"services": service}}
     )
     return result.modified_count > 0
 
@@ -258,15 +295,24 @@ async def update_service(stylist_id: str, service_id: str, service_data: Dict[st
     """
     Update an existing service for a stylist
     """
-    # Update with timestamp
+    # Update with timestamp and merge existing service to avoid dropping fields
+    service_data = dict(service_data)
     service_data["updatedAt"] = datetime.utcnow()
-    
+
+    # Fetch current service
+    stylist = await db.db.stylists.find_one({"_id": ObjectId(stylist_id), "services.id": service_id}, {"services.$": 1})
+    current = None
+    if stylist and "services" in stylist and stylist["services"]:
+        current = stylist["services"][0]
+
+    merged = {**(current or {}), **service_data, "id": service_id}
+    # Normalize type
+    t = str(merged.get("type", current.get("type") if current else "online")).lower()
+    merged["type"] = "inperson" if t == "inperson" else "online"
+
     result = await db.db.stylists.update_one(
-        {
-            "_id": ObjectId(stylist_id),
-            "services.id": service_id
-        },
-        {"$set": {"services.$": {**service_data, "id": service_id}}}
+        {"_id": ObjectId(stylist_id), "services.id": service_id},
+        {"$set": {"services.$": merged}}
     )
     return result.modified_count > 0
 
