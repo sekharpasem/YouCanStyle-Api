@@ -25,6 +25,11 @@ async def add_review(
     
     try:
         review = await create_review(review_in)
+        # Safety: ensure _id is a string for response validation
+        if review and isinstance(review.get("_id"), (bytes, bytearray)):
+            review["_id"] = review["_id"].decode()
+        elif review and review.get("_id") is not None:
+            review["_id"] = str(review["_id"])
         return review
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -45,7 +50,7 @@ async def remove_review(review_id: str, current_user = Depends(get_current_user)
     Delete a review. Only the user who created the review or an admin can delete it.
     """
     # Get the review to check ownership
-    review = await db.stylist_reviews.find_one({"_id": review_id})
+    review = await db.db.stylists_reviews.find_one({"_id": review_id})
     
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")

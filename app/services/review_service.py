@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Dict, Any, List
+from bson import ObjectId
 
 from app.db.mongodb import db
 from app.schemas.review import ReviewCreate
@@ -23,10 +24,13 @@ async def create_review(review_in: ReviewCreate) -> Dict[str, Any]:
         review_data["createdAt"] = datetime.utcnow()
 
     # Insert review into database
-    result = await db.db.stylist_reviews.insert_one(review_data)
+    result = await db.db.stylists_reviews.insert_one(review_data)
     
     # Get the created review
-    review = await db.db.stylist_reviews.find_one({"_id": result.inserted_id})
+    review = await db.db.stylists_reviews.find_one({"_id": result.inserted_id})
+    # Convert ObjectId to string for response validation
+    if review and "_id" in review:
+        review["_id"] = str(review["_id"])
     
     # Update stylist's average rating
     await update_stylist_rating(review_in.stylistId)
@@ -37,7 +41,11 @@ async def get_stylist_reviews(stylist_id: str) -> List[Dict[str, Any]]:
     """
     Get all reviews for a stylist
     """
-    reviews = await db.stylist_reviews.find({"stylistId": stylist_id}).to_list(None)
+    reviews = await db.db.stylists_reviews.find({"stylistId": stylist_id}).to_list(None)
+    # Stringify ObjectIds for API response
+    for r in reviews:
+        if r.get("_id") is not None:
+            r["_id"] = str(r["_id"])
     return reviews
 
 async def update_stylist_rating(stylist_id: str) -> None:
@@ -45,7 +53,7 @@ async def update_stylist_rating(stylist_id: str) -> None:
     Calculate and update the average rating for a stylist
     """
     # Get all reviews for the stylist
-    reviews = await db.stylist_reviews.find({"stylistId": stylist_id}).to_list(None)
+    reviews = await db.db.stylists_reviews.find({"stylistId": stylist_id}).to_list(None)
     
     if not reviews:
         return
@@ -55,7 +63,7 @@ async def update_stylist_rating(stylist_id: str) -> None:
     average_rating = round(total_rating / len(reviews), 1)
     
     # Update stylist's rating
-    await db.stylists.update_one(
+    await db.db.stylists.update_one(
         {"_id": stylist_id},
         {"$set": {"rating": average_rating, "reviewCount": len(reviews)}}
     )
@@ -65,12 +73,12 @@ async def delete_review(review_id: str) -> bool:
     Delete a review by ID
     """
     # Get the review to find the stylist ID
-    review = await db.stylist_reviews.find_one({"_id": review_id})
+    review = await db.db.stylists_reviews.find_one({"_id": ObjectId(review_id)})
     if not review:
         return False
     
     # Delete the review
-    result = await db.stylist_reviews.delete_one({"_id": review_id})
+    result = await db.db.stylists_reviews.delete_one({"_id": ObjectId(review_id)})
     
     # Update the stylist's average rating
     await update_stylist_rating(review["stylistId"])
