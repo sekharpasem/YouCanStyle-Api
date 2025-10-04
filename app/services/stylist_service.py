@@ -176,6 +176,11 @@ async def get_all_stylists(
     if in_person_only is not None:
         query["availableInPerson"] = in_person_only
     
+    # By default, exclude stylists who are unavailable in both modes
+    # Apply this only when no explicit availability filter is requested
+    if online_only is None and in_person_only is None:
+        query["$or"] = [{"availableOnline": True}, {"availableInPerson": True}]
+    
     # Filter by stylist type (intern or professional)
     if is_intern is not None:
         query["isIntern"] = is_intern
