@@ -2,6 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.auth import get_current_user
+from bson import ObjectId
 from app.schemas.review import ReviewCreate, ReviewResponse
 from app.services.review_service import create_review, get_stylist_reviews, delete_review
 from app.db.mongodb import db
@@ -50,13 +51,17 @@ async def remove_review(review_id: str, current_user = Depends(get_current_user)
     Delete a review. Only the user who created the review or an admin can delete it.
     """
     # Get the review to check ownership
-    review = await db.db.stylists_reviews.find_one({"_id": review_id})
+    try:
+        oid = ObjectId(review_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid review id")
+    review = await db.db.stylists_reviews.find_one({"_id": oid})
     
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     
     # Check if the current user is the one who created the review or an admin
-    if review["userId"] != current_user["_id"] and current_user.get("role") != "admin":
+    if str(review.get("userId")) != str(current_user.get("_id")) and current_user.get("role") != "admin":
         raise HTTPException(
             status_code=403, 
             detail="You can only delete your own reviews"

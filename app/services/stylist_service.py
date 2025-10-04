@@ -50,6 +50,14 @@ async def create_stylist(stylist_in: StylistCreate) -> Dict[str, Any]:
             normalized_services.append(s)
         stylist_data["services"] = normalized_services
 
+    # Compute initial price as min of services if available
+    try:
+        prices = [float(s.get("price", 0)) for s in stylist_data.get("services", []) if s and s.get("isActive", True) and s.get("price") is not None]
+        min_price = float(min(prices)) if prices else float(stylist_data.get("price", 0))
+        stylist_data["price"] = min_price
+    except Exception:
+        stylist_data["price"] = float(stylist_data.get("price", 0))
+
     # Generate an ObjectId and assign it as _id
     stylist_id = ObjectId()
     stylist_data["_id"] = stylist_id
@@ -79,6 +87,16 @@ async def get_stylist_by_id(stylist_id: str) -> Optional[Dict[str, Any]]:
             stylist["id"] = str(stylist["_id"])
             stylist.setdefault("portfolioImages", [])
             stylist.setdefault("profileImage", "")
+            # Ensure price reflects min of services
+            try:
+                prices = [float(s.get("price", 0)) for s in stylist.get("services", []) if s and s.get("isActive", True) and s.get("price") is not None]
+                computed_min = float(min(prices)) if prices else float(stylist.get("price", 0))
+                current_price = float(stylist.get("price", 0))
+                if abs(current_price - computed_min) > 1e-6:
+                    await db.db.stylists.update_one({"_id": ObjectId(stylist_id)}, {"$set": {"price": computed_min}})
+                    stylist["price"] = computed_min
+            except Exception:
+                pass
         return stylist
     except:
         return None
@@ -175,6 +193,16 @@ async def get_all_stylists(
         stylist["id"] = str(stylist["_id"])
         stylist.setdefault("portfolioImages", [])
         stylist.setdefault("profileImage", "")
+        # Keep price as min of services for response and try to reconcile stored value
+        try:
+            prices = [float(s.get("price", 0)) for s in stylist.get("services", []) if s and s.get("isActive", True) and s.get("price") is not None]
+            computed_min = float(min(prices)) if prices else float(stylist.get("price", 0))
+            current_price = float(stylist.get("price", 0))
+            stylist["price"] = computed_min
+            if abs(current_price - computed_min) > 1e-6:
+                await db.db.stylists.update_one({"_id": stylist["_id"]}, {"$set": {"price": computed_min}})
+        except Exception:
+            pass
         
     return stylists
 
@@ -289,6 +317,15 @@ async def add_service(stylist_id: str, service_data: Dict[str, Any]) -> bool:
         {"_id": ObjectId(stylist_id)},
         {"$push": {"services": service}}
     )
+    # Recompute min price
+    if result.modified_count > 0:
+        try:
+            stylist = await db.db.stylists.find_one({"_id": ObjectId(stylist_id)}, {"services": 1})
+            prices = [float(s.get("price", 0)) for s in (stylist.get("services", []) if stylist else []) if s and s.get("isActive", True) and s.get("price") is not None]
+            min_price = float(min(prices)) if prices else 0.0
+            await db.db.stylists.update_one({"_id": ObjectId(stylist_id)}, {"$set": {"price": min_price}})
+        except Exception:
+            pass
     return result.modified_count > 0
 
 async def update_service(stylist_id: str, service_id: str, service_data: Dict[str, Any]) -> bool:
@@ -314,6 +351,15 @@ async def update_service(stylist_id: str, service_id: str, service_data: Dict[st
         {"_id": ObjectId(stylist_id), "services.id": service_id},
         {"$set": {"services.$": merged}}
     )
+    # Recompute min price
+    if result.modified_count > 0:
+        try:
+            stylist = await db.db.stylists.find_one({"_id": ObjectId(stylist_id)}, {"services": 1})
+            prices = [float(s.get("price", 0)) for s in (stylist.get("services", []) if stylist else []) if s and s.get("isActive", True) and s.get("price") is not None]
+            min_price = float(min(prices)) if prices else 0.0
+            await db.db.stylists.update_one({"_id": ObjectId(stylist_id)}, {"$set": {"price": min_price}})
+        except Exception:
+            pass
     return result.modified_count > 0
 
 async def remove_service(stylist_id: str, service_id: str) -> bool:
@@ -324,6 +370,15 @@ async def remove_service(stylist_id: str, service_id: str) -> bool:
         {"_id": ObjectId(stylist_id)},
         {"$pull": {"services": {"id": service_id}}}
     )
+    # Recompute min price
+    if result.modified_count > 0:
+        try:
+            stylist = await db.db.stylists.find_one({"_id": ObjectId(stylist_id)}, {"services": 1})
+            prices = [float(s.get("price", 0)) for s in (stylist.get("services", []) if stylist else []) if s and s.get("isActive", True) and s.get("price") is not None]
+            min_price = float(min(prices)) if prices else 0.0
+            await db.db.stylists.update_one({"_id": ObjectId(stylist_id)}, {"$set": {"price": min_price}})
+        except Exception:
+            pass
     return result.modified_count > 0
 
 async def get_availability(stylist_id: str) -> Optional[Dict[str, Any]]:

@@ -52,21 +52,39 @@ async def update_stylist_rating(stylist_id: str) -> None:
     """
     Calculate and update the average rating for a stylist
     """
-    # Get all reviews for the stylist
-    reviews = await db.db.stylists_reviews.find({"stylistId": stylist_id}).to_list(None)
-    
-    if not reviews:
+    # Aggregate average rating and count efficiently
+    pipeline = [
+        {"$match": {"stylistId": stylist_id}},
+        {"$group": {"_id": None, "avgRating": {"$avg": "$rating"}, "count": {"$sum": 1}}},
+    ]
+    agg = await db.db.stylists_reviews.aggregate(pipeline).to_list(length=1)
+    if not agg:
+        # No reviews: set rating and count to zero
+        result = await db.db.stylists.update_one(
+            {"_id": ObjectId(stylist_id)},
+            {"$set": {"rating": 0.0, "reviewCount": 0}}
+        )
+        if result.modified_count == 0:
+            # Fallback if stylist _id is stored as string in 'id'
+            await db.db.stylists.update_one(
+                {"id": stylist_id},
+                {"$set": {"rating": 0.0, "reviewCount": 0}}
+            )
         return
-    
-    # Calculate average rating
-    total_rating = sum(review["rating"] for review in reviews)
-    average_rating = round(total_rating / len(reviews), 1)
-    
-    # Update stylist's rating
-    await db.db.stylists.update_one(
-        {"_id": stylist_id},
-        {"$set": {"rating": average_rating, "reviewCount": len(reviews)}}
+    avg = agg[0].get("avgRating") or 0.0
+    count = agg[0].get("count", 0) or 0
+    average_rating = round(float(avg), 1) if count > 0 else 0.0
+    # Update stylist's rating and reviewCount
+    result = await db.db.stylists.update_one(
+        {"_id": ObjectId(stylist_id)},
+        {"$set": {"rating": average_rating, "reviewCount": int(count)}}
     )
+    if result.modified_count == 0:
+        # Fallback if stylist _id is stored as string in 'id'
+        await db.db.stylists.update_one(
+            {"id": stylist_id},
+            {"$set": {"rating": average_rating, "reviewCount": int(count)}}
+        )
 
 async def delete_review(review_id: str) -> bool:
     """
