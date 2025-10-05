@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from typing import List, Dict, Any
 from app.core.auth import get_current_user
 from app.schemas.stylist import Service
@@ -10,6 +11,7 @@ from app.services.stylist_service import (
 router = APIRouter()
 
 @router.get("/{stylist_id}", response_model=List[Dict[str, Any]])
+@router.get("/{stylist_id}/", response_model=List[Dict[str, Any]])
 async def get_services_by_stylist(stylist_id: str):
     """
     Get all services offered by a stylist
@@ -27,6 +29,7 @@ async def get_services_by_stylist(stylist_id: str):
     return services
 
 @router.get("/me", response_model=List[Dict[str, Any]])
+@router.get("/me/", response_model=List[Dict[str, Any]])
 async def get_my_services(current_user: dict = Depends(get_current_user)):
     """
     Get all services offered by the current stylist
@@ -44,6 +47,7 @@ async def get_my_services(current_user: dict = Depends(get_current_user)):
     return services
 
 @router.post("/me", response_model=Dict[str, Any])
+@router.post("/me/", response_model=Dict[str, Any])
 async def add_stylist_service(
     service: Service,
     current_user: dict = Depends(get_current_user)
@@ -59,8 +63,9 @@ async def add_stylist_service(
             detail="Stylist profile not found"
         )
     
-    # Add the service
-    success = await add_service(str(stylist["_id"]), service.dict())
+    # Add the service (ensure enum fields are serialized)
+    payload = jsonable_encoder(service)
+    success = await add_service(str(stylist["_id"]), payload)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -72,6 +77,7 @@ async def add_stylist_service(
     return {"message": "Service added successfully", "services": services}
 
 @router.put("/me/{service_id}", response_model=Dict[str, Any])
+@router.put("/me/{service_id}/", response_model=Dict[str, Any])
 async def update_stylist_service(
     service_id: str,
     service: Service,
@@ -88,8 +94,9 @@ async def update_stylist_service(
             detail="Stylist profile not found"
         )
     
-    # Update the service
-    success = await update_service(str(stylist["_id"]), service_id, service.dict())
+    # Update the service (ensure enum fields are serialized)
+    payload = jsonable_encoder(service)
+    success = await update_service(str(stylist["_id"]), service_id, payload)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -101,6 +108,7 @@ async def update_stylist_service(
     return {"message": "Service updated successfully", "services": services}
 
 @router.delete("/me/{service_id}", response_model=Dict[str, Any])
+@router.delete("/me/{service_id}/", response_model=Dict[str, Any])
 async def delete_stylist_service(
     service_id: str,
     current_user: dict = Depends(get_current_user)

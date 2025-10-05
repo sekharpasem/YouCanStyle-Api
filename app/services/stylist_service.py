@@ -314,8 +314,8 @@ async def add_service(stylist_id: str, service_data: Dict[str, Any]) -> bool:
     service = dict(service_data)
     service["id"] = str(ObjectId())
     service["createdAt"] = datetime.utcnow()
-    # Normalize type
-    t = str(service.get("type", "online")).lower()
+    # Normalize type: handle variants like "in_person", "In Person"
+    t = str(service.get("type", "online")).strip().lower().replace(" ", "").replace("_", "")
     service["type"] = "inperson" if t == "inperson" else "online"
 
     result = await db.db.stylists.update_one(
@@ -348,8 +348,8 @@ async def update_service(stylist_id: str, service_id: str, service_data: Dict[st
         current = stylist["services"][0]
 
     merged = {**(current or {}), **service_data, "id": service_id}
-    # Normalize type
-    t = str(merged.get("type", current.get("type") if current else "online")).lower()
+    # Normalize type: handle variants like "in_person", "In Person"
+    t = str(merged.get("type", current.get("type") if current else "online")).strip().lower().replace(" ", "").replace("_", "")
     merged["type"] = "inperson" if t == "inperson" else "online"
 
     result = await db.db.stylists.update_one(
