@@ -72,6 +72,11 @@ async def create_indexes():
         await db.db.stylists_reviews.create_index("userId")
         await db.db.stylists_reviews.create_index("createdAt")
         
+        # Services collection indexes (admin-managed static services)
+        await db.db.services.create_index("name")
+        await db.db.services.create_index("category")
+        await db.db.services.create_index("isActive")
+
         # User favorites collection indexes
         await db.db.user_favorites.create_index(
             [("userId", 1), ("stylistId", 1)],

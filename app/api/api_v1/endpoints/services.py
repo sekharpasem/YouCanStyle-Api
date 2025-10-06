@@ -3,12 +3,32 @@ from fastapi.encoders import jsonable_encoder
 from typing import List, Dict, Any
 from app.core.auth import get_current_user
 from app.schemas.stylist import Service
+from app.db.mongodb import get_database
 from app.services.stylist_service import (
     get_stylist_by_id, get_stylist_by_user_id,
     get_stylist_services, add_service, update_service, remove_service
 )
 
 router = APIRouter()
+
+# Public catalog of static services (admin-managed)
+@router.get("/", response_model=List[Dict[str, Any]])
+async def list_services():
+    """
+    List all static services from the global 'services' collection.
+    These are admin-provided, not stylist-specific.
+    """
+    db = await get_database()
+    coll = db.get_collection("services")
+    # Prefer active services first if the field exists
+    cursor = coll.find({}).sort([("category", 1), ("name", 1)])
+    services: List[Dict[str, Any]] = []
+    async for doc in cursor:
+        # Normalize id field
+        if "_id" in doc:
+            doc["id"] = str(doc.pop("_id"))
+        services.append(doc)
+    return services
 
 @router.get("/{stylist_id}", response_model=List[Dict[str, Any]])
 @router.get("/{stylist_id}/", response_model=List[Dict[str, Any]])
