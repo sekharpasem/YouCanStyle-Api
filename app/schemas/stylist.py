@@ -19,12 +19,17 @@ class Certificate(BaseModel):
     verified: bool = False
     verifiedAt: Optional[datetime] = None
     
+class ServiceType(str, Enum):
+    ONLINE = "online"
+    INPERSON = "inperson"
+
 class Service(BaseModel):
     name: str
     description: str
     duration: int  # Duration in minutes
     price: float
     category: str  # e.g., 'Hair', 'Makeup', 'Nails'
+    type: ServiceType = ServiceType.ONLINE
     isActive: bool = True
 
 class Experience(BaseModel):
@@ -74,6 +79,7 @@ class StylistCreate(BaseModel):
     experience: Experience
     availableOnline: bool = True
     availableInPerson: bool = True
+    profileImage: Optional[str] = None
     services: Optional[List[Service]] = []
     unavailable: Optional[List[UnavailableSlot]] = []  # New field for unavailable dates and slots
     
@@ -83,6 +89,7 @@ class StylistUpdate(BaseModel):
     location: Optional[str] = None
     specialties: Optional[List[str]] = None
     portfolioImages: Optional[List[str]] = None
+    profileImage: Optional[str] = None
     price: Optional[float] = None
     experience: Optional[Experience] = None
     availableOnline: Optional[bool] = None
@@ -100,6 +107,7 @@ class StylistDB(BaseModel):
     location: str
     bio: str
     portfolioImages: List[str] = []
+    profileImage: str = ""
     specialties: List[str]
     price: float  # Base price
     rating: float = 0
@@ -130,6 +138,7 @@ class StylistResponse(BaseModel):
     location: str
     bio: str
     portfolioImages: List[str]
+    profileImage: str
     specialties: List[str]
     price: float
     rating: float

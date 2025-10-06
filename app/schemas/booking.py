@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
 
@@ -22,12 +22,21 @@ class Coordinates(BaseModel):
     lat: float
     lng: float
 
+class ServiceDetail(BaseModel):
+    id: str
+    title: str
+    duration: int
+    price: int
+    isOnline: bool
+    sessionType: Optional[str] = None
+
 class BookingCreate(BaseModel):
     stylistId: str
+    stylistName: str
     date: datetime
     startTime: str
     endTime: str
-    services: List[str]
+    services: List[Dict[str, Any]]  # Only support service objects format
     price: int
     duration: int
     isOnlineSession: bool
@@ -46,13 +55,14 @@ class BookingUpdate(BaseModel):
 class BookingDB(BaseModel):
     id: str = Field(..., alias="_id")
     stylistId: str
+    stylistName: str
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
     date: datetime
     startTime: str
     endTime: str
-    services: List[str]
+    services: List[Dict[str, Any]]  # Only support service objects format
     price: int
     duration: int
     isOnlineSession: bool
@@ -78,13 +88,14 @@ class BookingDB(BaseModel):
 class BookingResponse(BaseModel):
     id: str
     stylistId: str
+    stylistName: str
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
     date: datetime
     startTime: str
     endTime: str
-    services: List[str]
+    services: List[Dict[str, Any]]  # Only support service objects format
     price: int
     duration: int
     isOnlineSession: bool

@@ -62,15 +62,29 @@ async def create_indexes():
         await db.db.reviews.create_index("stylistId")
         await db.db.reviews.create_index("bookingId", unique=True)
         
-        # Users reviews collection indexes (reviews by users about stylists)
+        # Users reviews collection indexes (reviews by stylists about users)
         await db.db.users_reviews.create_index("stylistId")
         await db.db.users_reviews.create_index("userId")
         await db.db.users_reviews.create_index("createdAt")
         
-        # Stylists reviews collection indexes (reviews by stylists about users)
+        # Stylists reviews collection indexes (reviews by users about stylists)
         await db.db.stylists_reviews.create_index("stylistId")
         await db.db.stylists_reviews.create_index("userId")
         await db.db.stylists_reviews.create_index("createdAt")
+        
+        # Services collection indexes (admin-managed static services)
+        await db.db.services.create_index("name")
+        await db.db.services.create_index("category")
+        await db.db.services.create_index("isActive")
+
+        # User favorites collection indexes
+        await db.db.user_favorites.create_index(
+            [("userId", 1), ("stylistId", 1)],
+            unique=True
+        )
+        await db.db.user_favorites.create_index("userId")
+        await db.db.user_favorites.create_index("stylistId")
+        await db.db.user_favorites.create_index("createdAt")
         
         logger.info("MongoDB indexes created successfully.")
     except Exception as e:

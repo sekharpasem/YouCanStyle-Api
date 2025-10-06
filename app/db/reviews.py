@@ -26,9 +26,41 @@ async def create_user_review(user_id: str, stylist_id: str, review: str, rating:
 
 async def get_stylist_reviews(stylist_id: str) -> List[Dict[str, Any]]:
     """
-    Get all reviews for a specific stylist
+    Get all reviews for a specific stylist from users
     """
     reviews = await db.db.users_reviews.find({"stylistId": ObjectId(stylist_id)}).sort("createdAt", DESCENDING).to_list(length=None)
+    return reviews
+
+async def get_reviews_by_stylist(stylist_id: str, skip: int = 0, limit: int = 20) -> List[Dict[str, Any]]:
+    """
+    Get all reviews about a specific stylist from the stylists_reviews collection
+    with pagination support
+    
+    Args:
+        stylist_id: ID of the stylist being reviewed
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+    """
+    # Convert string ID to ObjectId for MongoDB query
+    stylist_object_id = ObjectId(stylist_id)
+    
+    # Find reviews where this stylist is being reviewed
+    cursor = db.db.stylists_reviews.find({"stylistId": stylist_id})\
+                               .sort("createdAt", DESCENDING)\
+                               .skip(skip)\
+                               .limit(limit)
+    
+    reviews = await cursor.to_list(length=limit)
+    
+    # Convert ObjectId to string for JSON serialization
+    for review in reviews:
+        review["_id"] = str(review["_id"])
+        review["stylistId"] = str(review["stylistId"])
+        review["userId"] = str(review["userId"])
+        # Ensure createdAt is serializable
+        if isinstance(review.get("createdAt"), datetime):
+            review["createdAt"] = review["createdAt"].isoformat()
+    
     return reviews
 
 async def create_stylist_review(stylist_id: str, user_id: str, review: str, rating: int, created_at: Optional[datetime] = None) -> Dict[str, Any]:
@@ -60,51 +92,43 @@ async def get_user_reviews(user_id: str) -> List[Dict[str, Any]]:
 async def get_stylist_rating_and_review_count(stylist_id: str) -> Dict[str, Any]:
     """
     Get the average rating and review count for a specific stylist from the stylists_reviews collection
+    
+    Args:
+        stylist_id: ID of the stylist to get rating for
     """
     try:
-        # Check if collection exists and create it if needed
-        collections = await db.db.list_collection_names()
-        if "stylists_reviews" not in collections:
-            # If collection doesn't exist yet, create it by inserting and then removing a dummy document
-            dummy_doc = {"_id": "temp", "temp": True}
-            await db.db.stylists_reviews.insert_one(dummy_doc)
-            await db.db.stylists_reviews.delete_one({"_id": "temp"})
-            # Return default values since there are no reviews yet
-            return {
-                "stylistId": str(stylist_id),
-                "rating": 0.0,
-                "reviewCount": 0
-            }
+        # Convert string ID to ObjectId for MongoDB query
+        stylist_object_id = stylist_id
             
-        # Proceed with aggregation
+        # Set up the aggregation pipeline to calculate average rating and count reviews
         pipeline = [
-            {"$match": {"stylistId": ObjectId(stylist_id)}},
+            {"$match": {"stylistId": stylist_object_id}},  # Find all reviews for this stylist
             {"$group": {
-                "_id": "$stylistId",
-                "averageRating": {"$avg": "$rating"},
-                "reviewCount": {"$sum": 1}
+                "_id": "$stylistId",                  # Group by stylist ID
+                "averageRating": {"$avg": "$rating"},  # Calculate average rating
+                "reviewCount": {"$sum": 1}             # Count total number of reviews
             }}
         ]
         
+        # Execute the aggregation pipeline
         result = await db.db.stylists_reviews.aggregate(pipeline).to_list(length=1)
         
+        # Process the results
         if result:
+            # Reviews found - return actual data
             return {
                 "stylistId": str(stylist_id),
-                "rating": round(result[0]["averageRating"], 1),
+                "rating": round(result[0]["averageRating"], 1),  # Round to 1 decimal place
                 "reviewCount": result[0]["reviewCount"]
             }
         else:
+            # No reviews found - return zeros (this is actual data, not default)
             return {
                 "stylistId": str(stylist_id),
                 "rating": 0.0,
                 "reviewCount": 0
             }
     except Exception as e:
-        # If any error occurs, return default values
+        # Log the error and re-raise it for proper handling in the API layer
         print(f"Error getting stylist rating: {e}")
-        return {
-            "stylistId": str(stylist_id),
-            "rating": 0.0,
-            "reviewCount": 0
-        }
+        raise
