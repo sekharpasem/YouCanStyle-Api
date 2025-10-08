@@ -24,6 +24,7 @@ class ServiceType(str, Enum):
     INPERSON = "inperson"
 
 class Service(BaseModel):
+    id: Optional[str] = None  # Unique identifier for the service (present in DB)
     name: str
     description: str
     duration: int  # Duration in minutes

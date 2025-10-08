@@ -31,7 +31,6 @@ async def list_services():
     return services
 
 @router.get("/{stylist_id}", response_model=List[Dict[str, Any]])
-@router.get("/{stylist_id}/", response_model=List[Dict[str, Any]])
 async def get_services_by_stylist(stylist_id: str):
     """
     Get all services offered by a stylist
@@ -49,7 +48,6 @@ async def get_services_by_stylist(stylist_id: str):
     return services
 
 @router.get("/me", response_model=List[Dict[str, Any]])
-@router.get("/me/", response_model=List[Dict[str, Any]])
 async def get_my_services(current_user: dict = Depends(get_current_user)):
     """
     Get all services offered by the current stylist
@@ -67,7 +65,6 @@ async def get_my_services(current_user: dict = Depends(get_current_user)):
     return services
 
 @router.post("/me", response_model=Dict[str, Any])
-@router.post("/me/", response_model=Dict[str, Any])
 async def add_stylist_service(
     service: Service,
     current_user: dict = Depends(get_current_user)
@@ -97,7 +94,6 @@ async def add_stylist_service(
     return {"message": "Service added successfully", "services": services}
 
 @router.put("/me/{service_id}", response_model=Dict[str, Any])
-@router.put("/me/{service_id}/", response_model=Dict[str, Any])
 async def update_stylist_service(
     service_id: str,
     service: Service,
@@ -128,7 +124,6 @@ async def update_stylist_service(
     return {"message": "Service updated successfully", "services": services}
 
 @router.delete("/me/{service_id}", response_model=Dict[str, Any])
-@router.delete("/me/{service_id}/", response_model=Dict[str, Any])
 async def delete_stylist_service(
     service_id: str,
     current_user: dict = Depends(get_current_user)

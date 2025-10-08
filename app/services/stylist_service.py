@@ -87,6 +87,25 @@ async def get_stylist_by_id(stylist_id: str) -> Optional[Dict[str, Any]]:
             stylist["id"] = str(stylist["_id"])
             stylist.setdefault("portfolioImages", [])
             stylist.setdefault("profileImage", "")
+            # Ensure each service has an id (for clients to edit/delete)
+            try:
+                services = list(stylist.get("services", []))
+                updated = False
+                normalized = []
+                for svc in services:
+                    s = dict(svc) if isinstance(svc, dict) else dict(svc or {})
+                    if not s.get("id"):
+                        s["id"] = str(ObjectId())
+                        updated = True
+                    normalized.append(s)
+                if updated:
+                    await db.db.stylists.update_one(
+                        {"_id": ObjectId(stylist_id)},
+                        {"$set": {"services": normalized}}
+                    )
+                    stylist["services"] = normalized
+            except Exception:
+                pass
             # Ensure price reflects min of services
             try:
                 prices = [float(s.get("price", 0)) for s in stylist.get("services", []) if s and s.get("isActive", True) and s.get("price") is not None]
@@ -110,6 +129,25 @@ async def get_stylist_by_user_id(user_id: str) -> Optional[Dict[str, Any]]:
         stylist["id"] = str(stylist["_id"])
         stylist.setdefault("portfolioImages", [])
         stylist.setdefault("profileImage", "")
+        # Ensure each service has an id
+        try:
+            services = list(stylist.get("services", []))
+            updated = False
+            normalized = []
+            for svc in services:
+                s = dict(svc) if isinstance(svc, dict) else dict(svc or {})
+                if not s.get("id"):
+                    s["id"] = str(ObjectId())
+                    updated = True
+                normalized.append(s)
+            if updated:
+                await db.db.stylists.update_one(
+                    {"_id": stylist["_id"]},
+                    {"$set": {"services": normalized}}
+                )
+                stylist["services"] = normalized
+        except Exception:
+            pass
     return stylist
 
 async def update_stylist(stylist_id: str, stylist_update: StylistUpdate) -> Optional[Dict[str, Any]]:
@@ -198,6 +236,25 @@ async def get_all_stylists(
         stylist["id"] = str(stylist["_id"])
         stylist.setdefault("portfolioImages", [])
         stylist.setdefault("profileImage", "")
+        # Ensure each service has an id
+        try:
+            services = list(stylist.get("services", []))
+            updated = False
+            normalized = []
+            for svc in services:
+                s = dict(svc) if isinstance(svc, dict) else dict(svc or {})
+                if not s.get("id"):
+                    s["id"] = str(ObjectId())
+                    updated = True
+                normalized.append(s)
+            if updated:
+                await db.db.stylists.update_one(
+                    {"_id": stylist["_id"]},
+                    {"$set": {"services": normalized}}
+                )
+                stylist["services"] = normalized
+        except Exception:
+            pass
         # Keep price as min of services for response and try to reconcile stored value
         try:
             prices = [float(s.get("price", 0)) for s in stylist.get("services", []) if s and s.get("isActive", True) and s.get("price") is not None]
