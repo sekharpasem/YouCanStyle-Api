@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Body, Depends
+from fastapi import APIRouter, HTTPException, status, Body, Depends, UploadFile, File
+import os
 from typing import Any, Dict, Optional
 from app.core.auth import create_access_token, get_current_user
 from app.schemas.token import Token
 from app.schemas.user import UserResponse, UserUpdate
+from app.utils.file_upload import upload_file
 from app.db.mongodb import db
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -154,4 +156,42 @@ async def update_user_profile(
     user_response = dict(updated_user)
     user_response["id"] = str(user_response.pop("_id"))
         
+    return user_response
+
+@router.post("/me/profile-image", response_model=UserResponse)
+async def upload_user_profile_image(
+    file: UploadFile = File(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    """
+    Upload a profile image for the current authenticated user, store it in S3
+    under users/profiles/, and persist the URL to the users collection.
+    """
+    # Validate file type (be tolerant of missing/incorrect content-type)
+    allowed_types = {"image/jpeg", "image/png", "image/jpg"}
+    allowed_exts = {".jpg", ".jpeg", ".png"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if file.content_type not in allowed_types and ext not in allowed_exts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only JPEG and PNG images are allowed",
+        )
+
+    # Upload to S3: s3://youcanstyle/users/profiles/
+    image_url = await upload_file(file, folder="users/profiles")
+
+    # Update user profileImage in DB
+    from app.services.user_service import update_user
+
+    user_id = str(current_user["_id"])  # type: ignore
+    updated_user = await update_user(user_id, UserUpdate(profileImage=image_url))
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Transform MongoDB _id to id
+    user_response = dict(updated_user)
+    user_response["id"] = str(user_response.pop("_id"))
     return user_response
