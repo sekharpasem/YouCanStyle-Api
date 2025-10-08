@@ -10,7 +10,7 @@ from app.services.stylist_service import (
     get_stylist_services, add_service, update_service, remove_service,
     set_profile_image
 )
-from app.utils.file_upload import upload_file
+from app.utils.file_upload import upload_file, delete_file
 from app.db.reviews import get_stylist_rating_and_review_count, get_reviews_by_stylist
 
 router = APIRouter()
@@ -180,13 +180,41 @@ async def upload_portfolio_image(
             detail="Stylist profile not found"
         )
     
-    # Upload file to storage
-    image_url = await upload_file(file, "portfolio")
+    # Upload file to storage under s3://<bucket>/stylists/gallery/
+    image_url = await upload_file(file, "stylists/gallery")
     
     # Add image URL to portfolio
     await update_portfolio(str(stylist["_id"]), image_url)
     
     # Return updated stylist
+    updated_stylist = await get_stylist_by_id(str(stylist["_id"]))
+    return updated_stylist
+
+@router.delete("/me/portfolio", response_model=StylistResponse)
+async def delete_portfolio_image_endpoint(
+    url: str = Query(..., description="The exact portfolio image URL to remove and delete from S3"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Remove an image from stylist's portfolio and delete it from S3 storage.
+    """
+    stylist = await get_stylist_by_user_id(str(current_user["_id"]))
+    if not stylist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stylist profile not found"
+        )
+
+    # Remove from portfolio list first (even if S3 delete fails, list remains consistent)
+    await remove_portfolio_image(str(stylist["_id"]), url)
+
+    # Best-effort delete of the underlying S3 object
+    try:
+        await delete_file(url)
+    except Exception:
+        # Ignore storage delete errors to not block UI; logs handled in util
+        pass
+
     updated_stylist = await get_stylist_by_id(str(stylist["_id"]))
     return updated_stylist
 
@@ -205,8 +233,8 @@ async def upload_profile_image(
             detail="Stylist profile not found"
         )
 
-    # Upload file to storage (use a dedicated folder prefix)
-    image_url = await upload_file(file, "profiles")
+    # Upload file to storage under s3://<bucket>/stylists/profiles/
+    image_url = await upload_file(file, "stylists/profiles")
 
     # Set the profileImage field
     await set_profile_image(str(stylist["_id"]), image_url)

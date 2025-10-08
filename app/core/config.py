@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 import os
 from dotenv import load_dotenv
@@ -31,9 +31,20 @@ class Settings(BaseSettings):
     EMAIL_USERNAME: str = os.getenv("EMAIL_USERNAME", "")
     EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "")
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+
+    # AWS S3 (optional)
+    AWS_S3_BUCKET: str | None = os.getenv("AWS_S3_BUCKET")
+    AWS_S3_REGION: str | None = os.getenv("AWS_S3_REGION")
+    AWS_ACCESS_KEY_ID: str | None = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str | None = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_PUBLIC_BASE_URL: str | None = os.getenv("AWS_S3_PUBLIC_BASE_URL")
+    AWS_S3_ACL: str | None = os.getenv("AWS_S3_ACL", "public-read")
+
+    # Pydantic v2 settings config
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra='ignore',  # ignore any env keys not declared above
+    )
 
 settings = Settings()
