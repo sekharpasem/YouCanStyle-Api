@@ -83,6 +83,10 @@ class StylistCreate(BaseModel):
     profileImage: Optional[str] = None
     services: Optional[List[Service]] = []
     unavailable: Optional[List[UnavailableSlot]] = []  # New field for unavailable dates and slots
+    # Optional personal fields
+    email: Optional[str] = None
+    gender: Optional[str] = None  # 'Male' | 'Female' | 'Other'
+    dob: Optional[str] = None     # yyyy-MM-dd
     
 class StylistUpdate(BaseModel):
     name: Optional[str] = None
@@ -99,6 +103,10 @@ class StylistUpdate(BaseModel):
     bankDetails: Optional[BankDetails] = None
     services: Optional[List[Service]] = None
     unavailable: Optional[List[UnavailableSlot]] = None  # New field for unavailable dates and slots
+    # Optional personal fields
+    email: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
 
 class StylistDB(BaseModel):
     id: str = Field(..., alias="_id")
@@ -124,6 +132,10 @@ class StylistDB(BaseModel):
     earnings: Earnings = Field(default_factory=Earnings)
     unavailable: List[UnavailableSlot] = []  # New field for unavailable dates and slots
     createdAt: datetime
+    # Optional personal fields
+    email: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
     
     class Config:
         populate_by_name = True
@@ -150,6 +162,10 @@ class StylistResponse(BaseModel):
     services: List[Service] = []  # Services offered by the stylist
     applicationStatus: ApplicationStatus
     unavailable: List[UnavailableSlot] = []  # New field for unavailable dates and slots
+    # Optional personal fields
+    email: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
     
     class Config:
         populate_by_name = True
