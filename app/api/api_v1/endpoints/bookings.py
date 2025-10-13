@@ -9,6 +9,11 @@ from app.services.booking_service import (
 )
 from app.services.stylist_service import get_stylist_by_id, get_stylist_by_user_id
 from datetime import datetime, timedelta
+from app.db.stylist_availability import (
+    get_unavailable_slots_by_date,
+    add_unavailable_date,
+    remove_unavailable_date,
+)
 
 router = APIRouter()
 
@@ -392,21 +397,119 @@ async def reschedule_booking_endpoint(
             detail="You don't have access to reschedule this booking"
         )
     
-    # Perform the reschedule
-    rescheduled_booking = await reschedule_booking(
-        booking_id,
-        reschedule_data.date,
-        reschedule_data.startTime,
-        reschedule_data.endTime,
-        reschedule_data.reason
-    )
-    
-    if not rescheduled_booking:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not reschedule booking. It may be completed, cancelled, or in an invalid state."
+    # Helpers
+    def _to_date_str(d: Optional[datetime | str]) -> str:
+        if isinstance(d, datetime):
+            return d.strftime("%Y-%m-%d")
+        if isinstance(d, str):
+            # Try ISO with/without Z; fallback to date-only
+            try:
+                s = d.replace("Z", "")
+                return datetime.fromisoformat(s).strftime("%Y-%m-%d")
+            except Exception:
+                try:
+                    return datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m-%d")
+                except Exception:
+                    # As a last resort, take first 10 chars
+                    return d[:10]
+        # Unknown type
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date format in booking")
+
+    def _parse_hhmm(hhmm: str) -> datetime:
+        try:
+            return datetime.strptime(hhmm, "%H:%M")
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid time format: {hhmm}")
+
+    def _hour_segments(start_hhmm: str, end_hhmm: str) -> List[str]:
+        """Split inclusive start to exclusive end into 60-min segments: ["10:00-11:00", ...]"""
+        start_dt = _parse_hhmm(start_hhmm)
+        end_dt = _parse_hhmm(end_hhmm)
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="endTime must be after startTime")
+        segs: List[str] = []
+        cur = start_dt
+        while cur < end_dt:
+            nxt = cur + timedelta(hours=1)
+            # Clamp to end to avoid overshoot if non-exact hour duration
+            if nxt > end_dt:
+                nxt = end_dt
+            segs.append(f"{cur.strftime('%H:%M')}-{nxt.strftime('%H:%M')}")
+            cur = nxt
+        return segs
+
+    stylist_id = booking["stylistId"]
+
+    # Old schedule details
+    old_date_str = _to_date_str(booking.get("date"))
+    old_start = booking.get("startTime")
+    old_end = booking.get("endTime")
+    if not old_start or not old_end:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Existing booking times missing")
+    old_segments = _hour_segments(old_start, old_end)
+
+    # New schedule details
+    new_date_str = _to_date_str(reschedule_data.date)
+    new_start = reschedule_data.startTime
+    new_end = reschedule_data.endTime
+    new_segments = _hour_segments(new_start, new_end)
+
+    # 1) Remove old unavailability slots
+    try:
+        existing_old_slots = await get_unavailable_slots_by_date(stylist_id, old_date_str)
+        # Remove just the old segments; keep others
+        updated_old_slots = [s for s in existing_old_slots if s not in set(old_segments)]
+        if len(updated_old_slots) == 0:
+            # No more slots on that day, remove the date entirely
+            await remove_unavailable_date(stylist_id, old_date_str)
+        else:
+            await add_unavailable_date(stylist_id, old_date_str, updated_old_slots)
+    except Exception as e:
+        # If we cannot free old slots, better to fail early to avoid inconsistent state
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to remove old unavailability: {e}")
+
+    # 2) Perform the reschedule
+    try:
+        rescheduled_booking = await reschedule_booking(
+            booking_id,
+            reschedule_data.date,
+            reschedule_data.startTime,
+            reschedule_data.endTime,
+            reschedule_data.reason
         )
-    
+        if not rescheduled_booking:
+            # Rollback: try to restore old slots
+            try:
+                existing_old_slots = await get_unavailable_slots_by_date(stylist_id, old_date_str)
+                restored = list(set(existing_old_slots) | set(old_segments))
+                await add_unavailable_date(stylist_id, old_date_str, restored)
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not reschedule booking. It may be completed, cancelled, or in an invalid state."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Rollback: try to restore old slots
+        try:
+            existing_old_slots = await get_unavailable_slots_by_date(stylist_id, old_date_str)
+            restored = list(set(existing_old_slots) | set(old_segments))
+            await add_unavailable_date(stylist_id, old_date_str, restored)
+        except Exception:
+            pass
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Reschedule failed: {e}")
+
+    # 3) Add new unavailability slots (best-effort). If it fails, booking remains rescheduled.
+    try:
+        existing_new_slots = await get_unavailable_slots_by_date(stylist_id, new_date_str)
+        merged_new = list(dict.fromkeys(existing_new_slots + new_segments))  # preserve order, dedupe
+        await add_unavailable_date(stylist_id, new_date_str, merged_new)
+    except Exception:
+        # Log in real system; for now, proceed to return rescheduled booking
+        pass
+
     return rescheduled_booking
 
 @router.put("/{booking_id}/location", response_model=BookingResponse)
