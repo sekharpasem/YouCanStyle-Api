@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # JWT Auth
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your_secret_key_here")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
     
     # CORS
     CORS_ORIGINS: List[str] = [
@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str | None = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_S3_PUBLIC_BASE_URL: str | None = os.getenv("AWS_S3_PUBLIC_BASE_URL")
     AWS_S3_ACL: str | None = os.getenv("AWS_S3_ACL", "public-read")
+
+    # Gemini settings (sole provider)
+    GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     # Pydantic v2 settings config
     model_config = SettingsConfigDict(

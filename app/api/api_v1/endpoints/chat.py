@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.core.auth import get_current_user
 from app.schemas.chat import (
     ChatRoomCreate, MessageCreate, ChatRoomResponse, 
@@ -11,6 +11,9 @@ from app.services.chat_service import (
     get_chat_room_for_booking, get_chat_room_between_users
 )
 from app.services.user_service import get_user_by_id
+from pydantic import BaseModel
+import httpx
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -238,3 +241,72 @@ async def mark_room_as_read(
     updated_room["unreadCount"] = updated_room.get("unreadCounts", {}).get(str(current_user["_id"]), 0)
     
     return updated_room
+
+# =============== AI Chat proxy to OpenAI ===============
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    model: Optional[str] = None
+    temperature: Optional[float] = 0.7
+
+@router.post("/ai", response_model=Dict[str, Any])
+async def chat_with_ai(
+    payload: ChatRequest,
+):
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini API key is not configured on the server"
+        )
+
+    model = payload.model or settings.GEMINI_MODEL
+
+    # Convert OpenAI-style messages to Gemini contents
+    def _map_role(r: str) -> str:
+        if r in ("user", "model"):
+            return r
+        if r == "assistant":
+            return "model"
+        if r == "system":
+            return "user"
+        return "user"
+
+    contents = []
+    for m in payload.messages:
+        contents.append({
+            "role": _map_role(m.role),
+            "parts": [{"text": m.content}]
+        })
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={settings.GEMINI_API_KEY}"
+    body = {
+        "contents": contents,
+        "generationConfig": {
+            "temperature": payload.temperature,
+        },
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            res = await client.post(url, json=body)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Upstream error: {e}")
+
+    if res.status_code < 200 or res.status_code >= 300:
+        try:
+            data = res.json()
+        except Exception:
+            data = {"error": res.text}
+        raise HTTPException(status_code=res.status_code, detail=data)
+
+    data = res.json()
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+        reply = "".join(p.get("text", "") for p in parts)
+    except Exception:
+        reply = ""
+    return {"reply": reply, "raw": data.get("usageMetadata", {})}
