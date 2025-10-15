@@ -22,6 +22,11 @@ class Coordinates(BaseModel):
     lat: float
     lng: float
 
+class MeetingPreference(str, Enum):
+    ZOOM = "zoom"
+    GOOGLE_MEET = "google_meet"
+    WHATSAPP = "whatsapp"
+
 class ServiceDetail(BaseModel):
     id: str
     title: str
@@ -43,6 +48,8 @@ class BookingCreate(BaseModel):
     location: Optional[str] = None
     notes: Optional[str] = None
     coordinates: Optional[Coordinates] = None
+    # List of virtual meeting preferences (only relevant if isOnlineSession=True)
+    meeting_preference: Optional[List[MeetingPreference]] = None
     
 class BookingUpdate(BaseModel):
     date: Optional[datetime] = None
@@ -51,6 +58,7 @@ class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
     location: Optional[str] = None
     notes: Optional[str] = None
+    meeting_preference: Optional[List[MeetingPreference]] = None
     
 class BookingDB(BaseModel):
     id: str = Field(..., alias="_id")
@@ -78,6 +86,7 @@ class BookingDB(BaseModel):
     coordinates: Optional[Coordinates] = None
     rating: Optional[int] = None
     review: Optional[str] = None
+    meeting_preference: Optional[List[MeetingPreference]] = None
     
     class Config:
         populate_by_name = True
@@ -109,6 +118,7 @@ class BookingResponse(BaseModel):
     rating: Optional[int] = None
     review: Optional[str] = None
     otpCode: Optional[str] = None
+    meeting_preference: Optional[List[MeetingPreference]] = None
     
     class Config:
         populate_by_name = True
