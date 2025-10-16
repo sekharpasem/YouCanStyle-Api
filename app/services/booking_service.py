@@ -77,7 +77,60 @@ async def update_booking(booking_id: str, booking_update: BookingUpdate) -> Opti
     if update_data:
         # Add updated timestamp
         update_data["updatedAt"] = datetime.utcnow()
-        
+
+        # If confirming a pending online booking, generate meeting link based on preference
+        try:
+            will_confirm = (
+                "status" in update_data and update_data["status"] == BookingStatus.CONFIRMED
+            )
+            was_pending = booking.get("status") == BookingStatus.PENDING
+            is_online = bool(booking.get("isOnlineSession"))
+            if will_confirm and was_pending and is_online:
+                # Preferences may come as Enums or strings; normalize to strings
+                prefs = update_data.get("meeting_preference") or booking.get("meeting_preference") or []
+                pref_values = [(p.value if hasattr(p, "value") else p) for p in prefs]
+                pref_values = [str(p).lower() for p in pref_values]
+
+                # Compute start time ISO and duration
+                date_dt: datetime = booking.get("date")
+                start_str = booking.get("startTime")
+                end_str = booking.get("endTime")
+                duration_minutes = 30
+                start_iso = None
+                if isinstance(date_dt, datetime) and isinstance(start_str, str) and isinstance(end_str, str) and ":" in start_str and ":" in end_str:
+                    try:
+                        sh, sm = [int(x) for x in start_str.split(":", 1)]
+                        eh, em = [int(x) for x in end_str.split(":", 1)]
+                        start_dt = date_dt.replace(hour=sh, minute=sm, second=0, microsecond=0)
+                        end_dt = date_dt.replace(hour=eh, minute=em, second=0, microsecond=0)
+                        diff = int((end_dt - start_dt).total_seconds() // 60)
+                        duration_minutes = diff if diff > 0 else duration_minutes
+                        start_iso = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    except Exception:
+                        pass
+
+                # Zoom preference
+                if "zoom" in pref_values and start_iso is not None:
+                    try:
+                        from app.services.zoom_service import create_zoom_meeting
+                        topic = f"YouCanStyle Session with {booking.get('clientName', '')}"
+                        zoom_resp = await create_zoom_meeting(
+                            topic=topic,
+                            start_time_iso=start_iso,
+                            duration_minutes=duration_minutes,
+                        )
+                        join_url = (zoom_resp or {}).get("join_url") if isinstance(zoom_resp, dict) else None
+                        if isinstance(join_url, str) and join_url:
+                            update_data["meetingLink"] = join_url
+                    except Exception:
+                        pass
+                # Google Meet fallback (no API integration here)
+                elif "google_meet" in pref_values:
+                    update_data.setdefault("meetingLink", "https://meet.google.com/new")
+        except Exception:
+            # Do not block core update on meeting creation issues
+            pass
+
         # Update booking in database
         await db.db.bookings.update_one(
             {"_id": ObjectId(booking_id)},

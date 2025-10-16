@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+    # WhatsApp Business Cloud API
+    WHATSAPP_ENABLED: bool = os.getenv("WHATSAPP_ENABLED", "false").lower() in ("1", "true", "yes")
+    WHATSAPP_TOKEN: str | None = os.getenv("WHATSAPP_TOKEN")
+    WHATSAPP_PHONE_NUMBER_ID: str | None = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: str | None = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+    WHATSAPP_DEFAULT_LANG: str = os.getenv("WHATSAPP_DEFAULT_LANG", "en")
+
+    # Zoom Server-to-Server OAuth
+    ZOOM_ACCOUNT_ID: str | None = os.getenv("ZOOM_ACCOUNT_ID")
+    ZOOM_CLIENT_ID: str | None = os.getenv("ZOOM_CLIENT_ID")
+    ZOOM_CLIENT_SECRET: str | None = os.getenv("ZOOM_CLIENT_SECRET")
+    ZOOM_USER_ID: str | None = os.getenv("ZOOM_USER_ID")  # email or userId of licensed host
+
     # Pydantic v2 settings config
     model_config = SettingsConfigDict(
         env_file=".env",

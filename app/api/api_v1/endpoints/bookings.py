@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Body, BackgroundTasks
 from typing import List, Optional, Dict
 from app.core.auth import get_current_user
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse, BookingStatus, BookingOtpVerify, PaymentStatus, BookingReschedule, BookingLocationUpdate
@@ -8,6 +8,8 @@ from app.services.booking_service import (
     complete_booking, add_review, update_payment_status, reschedule_booking
 )
 from app.services.stylist_service import get_stylist_by_id, get_stylist_by_user_id
+from app.core.config import settings
+from app.services.whatsapp_service import send_booking_confirmation_sync
 from datetime import datetime, timedelta
 from app.db.stylist_availability import (
     get_unavailable_slots_by_date,
@@ -20,7 +22,8 @@ router = APIRouter()
 @router.post("/", response_model=BookingResponse)
 async def create_new_booking(
     booking_in: BookingCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ):
     """
     Create a new booking as a client
@@ -40,7 +43,25 @@ async def create_new_booking(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not create booking"
         )
-    
+
+    # Schedule WhatsApp notification (non-blocking) if enabled and user prefers WhatsApp for virtual
+    try:
+        if settings.WHATSAPP_ENABLED and booking_in.isOnlineSession and background_tasks is not None:
+            prefs = booking_in.meeting_preference or []
+            pref_values = [(p.value if hasattr(p, "value") else p) for p in prefs]
+            if "whatsapp" in pref_values:
+                to_phone = current_user.get("phone")
+                if isinstance(to_phone, str) and to_phone.strip():
+                    # Best-effort send; failures are logged and do not affect response
+                    background_tasks.add_task(
+                        send_booking_confirmation_sync,
+                        to_phone.strip(),
+                        booking,
+                    )
+    except Exception as e:
+        # Never block booking on messaging failures
+        print(f"WhatsApp schedule error: {e}")
+
     return booking
 
 @router.get("/{booking_id}", response_model=BookingResponse)
