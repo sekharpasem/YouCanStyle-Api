@@ -78,20 +78,25 @@ def send_template_message_sync(
         "Authorization": f"Bearer {settings.WHATSAPP_TOKEN}",
         "Content-Type": "application/json",
     }
+    # Build template payload and include components only when parameters exist
+    template_obj: Dict[str, Any] = {
+        "name": template_name,
+        "language": {"code": (language or settings.WHATSAPP_DEFAULT_LANG)},
+    }
+
+    if body_parameters:
+        template_obj["components"] = [
+            {
+                "type": "body",
+                "parameters": body_parameters,
+            }
+        ]
+
     payload: Dict[str, Any] = {
         "messaging_product": "whatsapp",
         "to": to_e164,
         "type": "template",
-        "template": {
-            "name": template_name,
-            "language": {"code": (language or settings.WHATSAPP_DEFAULT_LANG)},
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": body_parameters,
-                }
-            ],
-        },
+        "template": template_obj,
     }
 
     try:
@@ -115,5 +120,14 @@ def send_booking_confirmation_sync(to_e164: str, booking: Dict[str, Any], langua
         to_e164=to_e164,
         template_name="booking_confirmation_client",
         body_parameters=body_params,
+        language=language,
+    )
+
+def send_hello_world_sync(to_e164: str, language: Optional[str] = None) -> bool:
+    """Send Meta sample 'hello_world' template (no parameters)."""
+    return send_template_message_sync(
+        to_e164=to_e164,
+        template_name="hello_world",
+        body_parameters=[],
         language=language,
     )

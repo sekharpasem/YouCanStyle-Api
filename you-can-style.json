@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "you-can-style",
+  "private_key_id": "64460eb567dcb907799505a848155ddb0f52af7d",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDrdDLnEqp3VHzY\nR3WeTYQFBTlIpmYwSkFdP/PBdnomX6PinzM06pZg3uxFJhvatAlrFHbwlSnlbbWc\nyhde7XCVYCGxw9fW2jT9W5Nq6bXRGLkwad46gpVd1r31h0Vx7ZC0DHKFfIK1vR64\n+Sy1PaaBY7dZYiM37sC9JF/r3CoAEh5eLukuXA0w81z4yMXalfGQUGTLzOaaEibq\n/yhyuEfRUOC7Yb5VYz1fpzKf/39sMAAesI21wyD9PE69q9bcq/dCpp70886Y9+CJ\nYMgyXm5QC+1raNd62Wk388LIFdJmmq6xdf8ghr00dmVEzT2tc+4yBjqoTtuv3NuA\nbfTkrSo1AgMBAAECggEAIRQ9eof9ea+zAn0M9zqTYP6E4my4+pvUEb0ZtS+8pYYr\nniZuU/GJQv7OrusAYCTfFd4q1PiqiYMfpXF3AG0ss1ptdsNkStkejLcVlPWqB5Wz\nntZLfxONgeuDheqFRSZH0s5/ixAdGloBkPc2OBhQkOkTf0lHArqroBHA2tV0SSH9\nfylWVL6vKSTqips1cOxZEn9PKK5P6wAb+yMwiRc2FMet8Tmt4ZOVEqiWNsOWV4NX\nyuWS5vSLiiyeoks+A7wOvpBbwLb0CvWuf4ZQ+U+5YshJQSHR9XUXXMuQqVtO8jBS\nlHorDONYENgkQJl1TuzE/VqHNmGrOKhV/cXzhe97mQKBgQD+QZdLFKEob4RRGBQq\npAYgMgSamNpMwSdV9/3nP+t7qyL+NEQkLYSNFh+lWMZibL2xPX+GTgGnGLyjosrO\njX/L4cDykoPs/1HLdav18QN93QBrPD5c7xusby6vp5F8CEGb8mcgdTP2GLtfZqeP\n2a25zVzvhzMstp76Jhz659JD9wKBgQDtEZiFe4Qam3hSt4aLC84ixfT+3CPVltq3\n31x/anOzG3jcenwRU1VDeXkRz00QdJo8Po5hrd/Exr57lyqAGTZek3g6c4atjbzg\nymR9veD9ikxT5coPuYhnvpYZ53ISMFMxylNfjrFglKv/MVg16FQUyTa0//p6ZYXD\nYIvGCNtgMwKBgDBk16EoygviPfMZfC0pjyjtnEa4tURKt2v7ic5MMkwVpNFxrU6d\ng08/WMKmBQyS2gA0TmOH0XS2lqEmySdLc3mg/JKvJIElj7IEMbjcKOf5+qxuiQgz\nUrcdamtwn5ZWE/bUyqA47qz2xCNCbL5KlnB5EClfOHRYRiYivv1axoC9AoGBANNY\njnrhxMHbvIcxqjanzZveky3qn9+430BxVosZIhCY+0TDxXvEqQzAbJjeELwM17vB\noTmfwxAwhny0JWWSFJB4NAUYHQb4h1x30uLutngSJT3ebCdcpiinFjX9ygpBHsoS\nsAVOtv99S2D0YsmcV+k4AReX5XvcqkWl+rYQC1NVAoGBAI8tH8b18vn6DCTax9xW\nEFN9/fmVwN7i+uCGKjYnfIyP3FpEmnR73edqBtA/oXfK7KWLoZOEx20hT4sS0XBW\nicJ7XyVhMyGCMYcxKZonovRmaAf818QAlPmX18BLxwJ/I8GMR7ClNhq4OjPrDxQK\nUgCBDN4ZYGyMn6tlgUj6f4N7\n-----END PRIVATE KEY-----\n",
+  "client_email": "meet-scheduler@you-can-style.iam.gserviceaccount.com",
+  "client_id": "116013764486113867299",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/meet-scheduler%40you-can-style.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

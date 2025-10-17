@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     ZOOM_CLIENT_SECRET: str | None = os.getenv("ZOOM_CLIENT_SECRET")
     ZOOM_USER_ID: str | None = os.getenv("ZOOM_USER_ID")  # email or userId of licensed host
 
+    # Google Calendar API (Service Account)
+    # Base64-encoded JSON credentials or a path to the JSON file
+    GOOGLE_SA_JSON_BASE64: str | None = os.getenv("GOOGLE_SA_JSON_BASE64")
+    GOOGLE_SA_JSON_PATH: str | None = os.getenv("GOOGLE_SA_JSON_PATH")
+    # The user email to impersonate (must be within your Google Workspace and domain-wide delegation enabled)
+    GOOGLE_CALENDAR_IMPERSONATE: str | None = os.getenv("GOOGLE_CALENDAR_IMPERSONATE")
+    GOOGLE_CALENDAR_TIMEZONE: str = os.getenv("GOOGLE_CALENDAR_TIMEZONE", "UTC")
+
     # Pydantic v2 settings config
     model_config = SettingsConfigDict(
         env_file=".env",

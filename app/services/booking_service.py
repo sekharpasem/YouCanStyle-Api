@@ -3,6 +3,7 @@ from app.db.mongodb import db
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingStatus, PaymentStatus
 from app.services.user_service import get_user_by_id
 from datetime import datetime, timedelta
+from app.core.config import settings
 import random
 import string
 from bson import ObjectId
@@ -97,6 +98,8 @@ async def update_booking(booking_id: str, booking_update: BookingUpdate) -> Opti
                 end_str = booking.get("endTime")
                 duration_minutes = 30
                 start_iso = None
+                start_dt: Optional[datetime] = None
+                end_dt: Optional[datetime] = None
                 if isinstance(date_dt, datetime) and isinstance(start_str, str) and isinstance(end_str, str) and ":" in start_str and ":" in end_str:
                     try:
                         sh, sm = [int(x) for x in start_str.split(":", 1)]
@@ -109,8 +112,30 @@ async def update_booking(booking_id: str, booking_update: BookingUpdate) -> Opti
                     except Exception:
                         pass
 
-                # Zoom preference
-                if "zoom" in pref_values and start_iso is not None:
+                # Prefer Google Meet if present in preferences
+                if "google_meet" in pref_values:
+                    try:
+                        if start_dt and end_dt:
+                            from app.services.google_calendar_service import create_google_meet_event
+                            summary = f"YouCanStyle Session with {booking.get('clientName', '')}"
+                            tz = settings.GOOGLE_CALENDAR_TIMEZONE or "UTC"
+                            meet_link = await create_google_meet_event(
+                                summary=summary,
+                                start_dt=start_dt,
+                                end_dt=end_dt,
+                                timezone=tz,
+                            )
+                            if isinstance(meet_link, str) and meet_link:
+                                update_data["meetingLink"] = meet_link
+                            else:
+                                # Fallback quick-start link
+                                update_data.setdefault("meetingLink", "https://meet.google.com/new")
+                    except Exception:
+                        # Do not block on Meet creation failures
+                        update_data.setdefault("meetingLink", "https://meet.google.com/new")
+
+                # Else, Zoom preference
+                elif "zoom" in pref_values and start_iso is not None:
                     try:
                         from app.services.zoom_service import create_zoom_meeting
                         topic = f"YouCanStyle Session with {booking.get('clientName', '')}"
@@ -124,9 +149,7 @@ async def update_booking(booking_id: str, booking_update: BookingUpdate) -> Opti
                             update_data["meetingLink"] = join_url
                     except Exception:
                         pass
-                # Google Meet fallback (no API integration here)
-                elif "google_meet" in pref_values:
-                    update_data.setdefault("meetingLink", "https://meet.google.com/new")
+                # Else, no preference match: do nothing (retain existing or none)
         except Exception:
             # Do not block core update on meeting creation issues
             pass

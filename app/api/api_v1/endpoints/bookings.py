@@ -9,7 +9,7 @@ from app.services.booking_service import (
 )
 from app.services.stylist_service import get_stylist_by_id, get_stylist_by_user_id
 from app.core.config import settings
-from app.services.whatsapp_service import send_booking_confirmation_sync
+from app.services.whatsapp_service import send_booking_confirmation_sync, send_hello_world_sync
 from datetime import datetime, timedelta
 from app.db.stylist_availability import (
     get_unavailable_slots_by_date,
@@ -44,19 +44,26 @@ async def create_new_booking(
             detail="Could not create booking"
         )
 
-    # Schedule WhatsApp notification (non-blocking) if enabled and user prefers WhatsApp for virtual
+    # Schedule WhatsApp notification (non-blocking)
+    # - For virtual sessions: send only if meeting_preference includes 'whatsapp'
+    # - For in-person sessions: always send
     try:
-        if settings.WHATSAPP_ENABLED and booking_in.isOnlineSession and background_tasks is not None:
-            prefs = booking_in.meeting_preference or []
-            pref_values = [(p.value if hasattr(p, "value") else p) for p in prefs]
-            if "whatsapp" in pref_values:
+        if settings.WHATSAPP_ENABLED and background_tasks is not None:
+            send_flag = False
+            if booking_in.isOnlineSession:
+                prefs = booking_in.meeting_preference or []
+                pref_values = [(p.value if hasattr(p, "value") else p) for p in prefs]
+                send_flag = "whatsapp" in pref_values
+            else:
+                send_flag = True
+
+            if send_flag:
                 to_phone = current_user.get("phone")
                 if isinstance(to_phone, str) and to_phone.strip():
-                    # Best-effort send; failures are logged and do not affect response
+                    # Temporarily send the approved sample template 'hello_world'
                     background_tasks.add_task(
-                        send_booking_confirmation_sync,
+                        send_hello_world_sync,
                         to_phone.strip(),
-                        booking,
                     )
     except Exception as e:
         # Never block booking on messaging failures
