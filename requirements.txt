@@ -20,3 +20,12 @@ google-api-python-client==2.137.0
 google-auth==2.35.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
+
+# Image processing for basic try-on preview
+Pillow==10.3.0
+
+# Vertex AI SDK
+google-cloud-aiplatform==1.64.0
+
+# GenAI SDK for Virtual Try-On (Recontext API)
+google-genai==0.6.0

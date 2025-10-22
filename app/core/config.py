@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     GOOGLE_CALENDAR_IMPERSONATE: str | None = os.getenv("GOOGLE_CALENDAR_IMPERSONATE")
     GOOGLE_CALENDAR_TIMEZONE: str = os.getenv("GOOGLE_CALENDAR_TIMEZONE", "UTC")
 
+    # Vertex AI (optional for try-on)
+    GCP_PROJECT_ID: str | None = os.getenv("GCP_PROJECT_ID")
+    GCP_LOCATION: str = os.getenv("GCP_LOCATION", "us-central1")
+    VERTEX_IMAGE_MODEL: str = os.getenv("VERTEX_IMAGE_MODEL", "imagen-3.0-generate")
+
     # Pydantic v2 settings config
     model_config = SettingsConfigDict(
         env_file=".env",
