@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from app.db.mongodb import db
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingStatus, PaymentStatus
 from app.services.user_service import get_user_by_id
+from app.services.stylist_service import get_stylist_by_id
 from datetime import datetime, timedelta
 from app.core.config import settings
 import random
@@ -26,12 +27,15 @@ async def create_booking(booking_in: BookingCreate, client_id: str) -> Dict[str,
     booking_data["createdAt"] = datetime.utcnow()
     booking_data["paymentStatus"] = PaymentStatus.PENDING
     
-    # Ensure stylistName is set (in case it wasn't provided)
-    if not booking_data.get("stylistName"):
-        from app.services.stylist_service import get_stylist_by_id
+    # Fetch stylist for denormalized fields (name/image)
+    try:
         stylist = await get_stylist_by_id(booking_in.stylistId)
-        if stylist:
+    except Exception:
+        stylist = None
+    if stylist:
+        if not booking_data.get("stylistName"):
             booking_data["stylistName"] = stylist.get("name", "")
+        booking_data["stylistImage"] = stylist.get("profileImage", "")
     
     # Generate OTP code for session verification
     booking_data["otpCode"] = ''.join(random.choices(string.digits, k=4))

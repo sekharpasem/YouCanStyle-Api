@@ -64,6 +64,7 @@ class BookingDB(BaseModel):
     id: str = Field(..., alias="_id")
     stylistId: str
     stylistName: str
+    stylistImage: Optional[str] = None
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
@@ -98,6 +99,7 @@ class BookingResponse(BaseModel):
     id: str
     stylistId: str
     stylistName: str
+    stylistImage: Optional[str] = None
     clientId: str
     clientName: str
     clientImage: Optional[str] = None
